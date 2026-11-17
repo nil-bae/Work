@@ -287,3 +287,44 @@ input, textarea { font: inherit; color: var(--fg); }
 #onlineList li[data-name] { cursor: pointer; }
 #onlineList li[data-name]:hover span { text-decoration: underline; }
 @media (pointer: coarse), (max-width: 700px) { #toast { top: 140px; font-size: 13px; } }
+
+/* 💰 근무 시간 · 지갑 · 투자 */
+.work-chip { pointer-events: auto; cursor: pointer; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(232,211,160,.45); background: var(--bg); backdrop-filter: blur(10px); font-size: 13px; color: var(--text, #fff); white-space: nowrap; }
+.work-chip b { color: var(--gold); font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) { .work-chip { font-size: 12px; padding: 6px 10px; } }
+.wal-big { margin: 12px 0 8px; padding: 14px 16px; border-radius: 14px; background: rgba(232,211,160,.1); border: 1px solid rgba(232,211,160,.35); }
+.wal-big small { display: block; color: var(--muted); font-size: 12px; }
+.wal-big b { font-size: 26px; color: var(--gold); font-variant-numeric: tabular-nums; }
+dl.wal { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 12px 0; font-size: 14px; }
+dl.wal dt { color: var(--muted); }
+dl.wal dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
+.up { color: #ff7b7b !important; } .down { color: #6f9bff !important; }
+.inv-cash { margin: 8px 0 4px; font-size: 14px; color: var(--muted); } .inv-cash b { color: var(--gold); }
+#invBody { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+#invBody li { padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); }
+.inv-top { display: flex; align-items: center; gap: 8px; }
+.inv-top i { width: 8px; height: 22px; border-radius: 3px; }
+.inv-top b { font-size: 15px; min-width: 76px; }
+.inv-top svg { flex: 1; min-width: 50px; max-width: 110px; }
+.inv-p { margin-left: auto; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.inv-p small { display: block; font-size: 12px; font-weight: 600; }
+.inv-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.inv-row small { color: var(--muted); font-size: 12px; }
+.inv-act { display: flex; gap: 6px; align-items: center; }
+.inv-act input { width: 64px; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.06); font-size: 15px; }
+.inv-act.wide input { flex: 1; width: auto; }
+.inv-act.wide { margin-top: 8px; }
+.inv-act button:not(.link) { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.08); font-size: 14px; }
+.inv-act button[data-buy], #savIn { border-color: rgba(255,107,107,.5); color: #ff9b9b; }
+.inv-act button[data-sell], #savOut { border-color: rgba(91,140,255,.5); color: #9bb8ff; }
+.inv-act button:disabled { opacity: .4; }
+#invBody li { min-width: 0; overflow: hidden; }
+@media (max-width: 520px) {
+  .inv-top svg { max-width: 64px; min-width: 40px; }
+  .inv-top b { min-width: 0; font-size: 14px; }
+  .inv-act input { width: 48px; }
+  .inv-act button:not(.link) { padding: 7px 9px; }
+  .inv-row { justify-content: flex-end; }
+  .inv-row small { width: 100%; }
+}

@@ -17,6 +17,8 @@ export const CEIL = 3.65;               // 바닥에서 천장까지
 export const ROOF = 4;                  // 옥상 층 번호
 export const ELEV = { x: -8.75, z: -0.9 }; // 엘리베이터 앞
 export const NOTICE = { floor: 2, x: -5.85, z: -0.8 };
+// 3층 💹 투자 상담실: 상담원(NPC)이 서는 자리 (손님은 동쪽에서 말 걺)
+export const INVEST = { floor: 2, x: -8.1, z: 3.0 };
 // 4층 결투장 (칼싸움) 가운데
 export const ARENA = { floor: 3, x: 5.3, z: -4.3 };
 // 4층 오락존: 동쪽 창가 투명 부스 5칸, 칸마다 샌드백
@@ -748,7 +750,7 @@ export function createBuilding() {
   }
 
   // ---------- 3F 회의실 2개 + 공지판 ----------
-  let noticeCanvas, noticeTex;
+  let noticeCanvas, noticeTex, investCanvas, investTex;
   {
     const F = floors[2], { kit: k, col, group } = F;
     SEATS = F.seats;
@@ -812,6 +814,26 @@ export function createBuilding() {
     }
     k.box(3, 0.45, 0.5, -5, 0, 6.0, M.oak); col(-6.5, 5.75, -3.5, 6.25);
     for (const [x, z, s] of [[-9.3, 5.8, 1], [-0.5, 5.8, 0.8], [9.3, 1.5, 0.9]]) plant(k, col, x, 0, z, s);
+    // 💹 투자 상담실 (서쪽 창가): 시세 전광판 · 상담 책상 · 손님 의자
+    {
+      const { x: ix, z: iz } = INVEST;
+      carpetBlob(k, ix + 1.4, iz, 4.2, 3.4, 0, 0.2, M.carpetWarm);
+      k.box(0.12, 2.0, 3.0, -9.5, 0, iz, M.walnut); col(-9.7, iz - 1.55, -9.35, iz + 1.55, true);  // 전광판 벽
+      k.box(0.05, 1.5, 2.7, -9.42, 0.7, iz, M.black);
+      investCanvas = document.createElement('canvas'); investCanvas.width = 1024; investCanvas.height = 576;
+      investTex = new THREE.CanvasTexture(investCanvas); investTex.colorSpace = THREE.SRGBColorSpace;
+      panel(group, investTex, 2.6, 1.4, -9.39, 1.45, iz, Math.PI / 2);
+      panel(group, signTex('💹 투자 상담실', '주식 · 적금 (게임 속 가상 돈)', { w: 640, h: 160, size: 58 }), 1.6, 0.4, -9.43, 2.38, iz, Math.PI / 2);
+      // 상담 책상
+      k.box(0.8, 0.05, 1.7, ix + 0.75, 0.72, iz, M.walnut); k.box(0.7, 0.7, 0.05, ix + 1.1, 0.02, iz, M.walnut);
+      for (const dz of [-0.78, 0.78]) k.box(0.7, 0.72, 0.05, ix + 0.75, 0, iz + dz, M.walnut);
+      col(ix + 0.33, iz - 0.88, ix + 1.17, iz + 0.88, false, 0.77);
+      k.box(0.03, 0.3, 0.45, ix + 0.55, 0.77, iz - 0.35, M.black); k.box(0.006, 0.27, 0.41, ix + 0.57, 0.785, iz - 0.35, M.screen); // 모니터
+      k.box(0.25, 0.02, 0.3, ix + 0.85, 0.77, iz + 0.35, M.paper, 0.2);                                                         // 상담 서류
+      mug(k, ix + 0.6, 0.77, iz + 0.55, M.white);
+      for (const dz of [-0.55, 0.55]) chair(k, ix + 1.85, 0, iz + dz, -Math.PI / 2, M.fabricGreen);
+      pendant(k, ix + 0.75, iz);
+    }
   }
 
   // ---------- 4F 라운지 ----------
@@ -1010,6 +1032,7 @@ export function createBuilding() {
     group,
     floors,
     notice: { canvas: noticeCanvas, texture: noticeTex },
+    investBoard: { canvas: investCanvas, texture: investTex },
     bags,
     // 무거운 샌드백: 조금만 밀리고 맞은 자리가 움푹 들어갔다 돌아옴 (멀리 날아가지 않게)
     hitBag(i, power) { const b = bags[i]; if (b) { b.vel += power * 0.22; b.squash = Math.min(1, b.squash + 0.55 + power * 0.1); } },

@@ -79,6 +79,7 @@
         <span id="zoneLabel">로비·카페</span>
       </div>
       <div class="net"><i id="netDot"></i><span id="netText">연결 중…</span></div>
+      <button id="workChip" class="work-chip" title="오늘 근무 시간 · 일급 (누르면 지갑)">⏱ 0:00:00</button>
       <nav class="actions">
         <button id="btnMe" title="내 캐릭터 바꾸기"><i>👤</i><span>내 캐릭터</span></button>
         <button id="btnFloor" title="층 이동"><i>🛗</i><span>층 이동</span></button>
@@ -161,6 +162,23 @@
         <button class="primary">공지 올리기</button>
       </form>
       <p class="sub" id="noticeMode"></p>
+    </div>
+  </div>
+
+  <!-- 💰 지갑 -->
+  <div id="walletModal" class="modal" hidden>
+    <div class="modal-card">
+      <header><h2>💰 내 지갑</h2><button class="close" data-close>✕</button></header>
+      <div id="walletBody"></div>
+    </div>
+  </div>
+  <!-- 💹 투자 상담실 (3층) -->
+  <div id="investModal" class="modal" hidden>
+    <div class="modal-card">
+      <header><h2>💹 투자 상담실</h2><button class="close" data-close>✕</button></header>
+      <p id="invCash" class="inv-cash"></p>
+      <div id="invTabs" class="req-tabs"><button type="button" data-t="stock">📈 주식</button><button type="button" data-t="save">🏦 적금</button></div>
+      <ul id="invBody"></ul>
     </div>
   </div>
 

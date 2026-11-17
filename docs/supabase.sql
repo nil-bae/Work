@@ -67,3 +67,27 @@ revoke update on public.requests from anon, authenticated;
 grant update (status, updated_at) on public.requests to anon, authenticated;
 /* 화면에 바로 반영되도록 서버 목록 새로 고침 */
 notify pgrst, 'reload schema';
+
+/* 💰 월급 · 지갑 · 💹 투자 (게임 속 가상 돈). 이것도 SQL Editor에서 실행하세요. */
+/* 이 표가 없으면 지갑은 각자 브라우저에만 저장됩니다. */
+create table if not exists public.wallets (
+  name text primary key check (char_length(name) <= 16),
+  cash double precision not null default 0,
+  unpaid double precision not null default 0,
+  day text,
+  day_secs int not null default 0 check (day_secs between 0 and 86400),
+  paid_month text,
+  savings double precision not null default 0,
+  sav_day text,
+  stocks jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.wallets enable row level security;
+drop policy if exists "wallets read" on public.wallets;
+create policy "wallets read" on public.wallets for select using (true);
+drop policy if exists "wallets insert" on public.wallets;
+create policy "wallets insert" on public.wallets for insert with check (true);
+drop policy if exists "wallets update" on public.wallets;
+create policy "wallets update" on public.wallets for update using (true) with check (true);
+grant select, insert, update on public.wallets to anon, authenticated;
+notify pgrst, 'reload schema';
