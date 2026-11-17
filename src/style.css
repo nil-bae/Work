@@ -328,3 +328,9 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
   .inv-row { justify-content: flex-end; }
   .inv-row small { width: 100%; }
 }
+
+/* 🆕 업데이트 소식 */
+.news-card h3 { margin: 14px 0 8px; font-size: 17px; }
+.news-card ul { margin: 0 0 16px; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; line-height: 1.5; }
+.news-card ul b { color: var(--gold); }
+.news-card .primary { width: 100%; }

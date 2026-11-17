@@ -10,6 +10,7 @@ import { createGarden, STREAM } from './garden.js';
 import { createDuel, SWORD, BOT_NAME } from './duel.js';
 import { createRequests } from './requests.js';
 import { createMoney } from './money.js';
+import { unseenNews, markNewsSeen } from './news.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
@@ -400,7 +401,7 @@ function enter() {
   if (duel.level > 1 || duel.loser) myAvatar.setName(lvName(me.name, duel.level, duel.loser));
   duel.load(me.name); // 결투 레벨 · 칭호 (Supabase)
   money.load(me.name).then((notes) => { // 입구에 도착하면(날아 들어오는 장면이 끝나면) 오늘의 일급 알림
-    const t = setInterval(() => { if (mode !== 'office') return; clearInterval(t); setTimeout(() => { notes.forEach((n) => toast(n, () => money.openWallet())); toast(money.greeting(), () => money.openWallet()); }, 300); }, 200);
+    const t = setInterval(() => { if (mode !== 'office') return; clearInterval(t); showNews(); setTimeout(() => { notes.forEach((n) => toast(n, () => money.openWallet())); toast(money.greeting(), () => money.openWallet()); }, 300); }, 200);
   });
   reqs.refresh().then(() => { if (reqs.pending) toast(`📋 아직 끝나지 않은 업무 요청이 ${reqs.pending}개 있어요. (위쪽 📋 업무)`); });
   scene.add(myAvatar.root);
@@ -1043,6 +1044,14 @@ async function refreshNotices() {
 refreshNotices();
 setInterval(refreshNotices, 60000);
 
+// 🆕 들어왔을 때 아직 안 본 업데이트 소식 (확인하면 이 기기에서는 다시 안 뜸)
+function showNews() {
+  const list = unseenNews(); if (!list.length) return;
+  $('newsBody').innerHTML = list.map((n) => `<h3>${n.title}</h3><ul>${n.items.map((t) => `<li>${t}</li>`).join('')}</ul>`).join('');
+  openModal('newsModal');
+}
+$('newsOk').onclick = () => { markNewsSeen(); closeModals(); };
+document.querySelector('#newsModal [data-close]').addEventListener('click', markNewsSeen);
 function openModal(id) { closeModals(); $(id).hidden = false; }
 function closeModals() { document.querySelectorAll('.modal').forEach((m) => (m.hidden = true)); }
 document.querySelectorAll('.modal').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m || e.target.hasAttribute('data-close')) closeModals(); }));
