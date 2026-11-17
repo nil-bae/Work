@@ -824,13 +824,15 @@ export function createBuilding() {
       investTex = new THREE.CanvasTexture(investCanvas); investTex.colorSpace = THREE.SRGBColorSpace;
       panel(group, investTex, 2.6, 1.4, -9.39, 1.45, iz, Math.PI / 2);
       panel(group, signTex('💹 투자 상담실', '주식 · 적금 (게임 속 가상 돈)', { w: 640, h: 160, size: 58 }), 1.6, 0.4, -9.43, 2.38, iz, Math.PI / 2);
-      // 상담 책상
-      k.box(0.8, 0.05, 1.7, ix + 0.75, 0.72, iz, M.walnut); k.box(0.7, 0.7, 0.05, ix + 1.1, 0.02, iz, M.walnut);
-      for (const dz of [-0.78, 0.78]) k.box(0.7, 0.72, 0.05, ix + 0.75, 0, iz + dz, M.walnut);
-      col(ix + 0.33, iz - 0.88, ix + 1.17, iz + 0.88, false, 0.77);
-      k.box(0.03, 0.3, 0.45, ix + 0.55, 0.77, iz - 0.35, M.black); k.box(0.006, 0.27, 0.41, ix + 0.57, 0.785, iz - 0.35, M.screen); // 모니터
-      k.box(0.25, 0.02, 0.3, ix + 0.85, 0.77, iz + 0.35, M.paper, 0.2);                                                         // 상담 서류
-      mug(k, ix + 0.6, 0.77, iz + 0.55, M.white);
+      // 상담 책상 (캐릭터 키에 맞춘 낮은 책상) + 상담원 의자
+      k.box(0.8, 0.05, 1.7, ix + 0.75, 0.5, iz, M.walnut); k.box(0.05, 0.48, 1.6, ix + 1.12, 0.02, iz, M.walnut);
+      for (const dz of [-0.78, 0.78]) k.box(0.7, 0.5, 0.05, ix + 0.75, 0, iz + dz, M.walnut);
+      col(ix + 0.33, iz - 0.88, ix + 1.17, iz + 0.88, false, 0.55);
+      k.box(0.03, 0.24, 0.38, ix + 0.5, 0.55, iz - 0.4, M.black); k.box(0.006, 0.21, 0.34, ix + 0.52, 0.565, iz - 0.4, M.screen); // 모니터
+      k.box(0.25, 0.02, 0.3, ix + 0.85, 0.55, iz + 0.3, M.paper, 0.2);                                                         // 상담 서류
+      mug(k, ix + 0.6, 0.55, iz + 0.55, M.white);
+      k.cyl(0.22, 0.06, ix, 0.36, iz, M.fabricGreen, 12); k.cyl(0.03, 0.36, ix, 0, iz, M.metal, 6); k.cyl(0.2, 0.03, ix, 0, iz, M.metal, 10);
+      k.box(0.06, 0.45, 0.42, ix - 0.22, 0.42, iz, M.fabricGreen);
       for (const dz of [-0.55, 0.55]) chair(k, ix + 1.85, 0, iz + dz, -Math.PI / 2, M.fabricGreen);
       pendant(k, ix + 0.75, iz);
     }

@@ -207,6 +207,7 @@ $('workChip').onclick = () => money.openWallet();
 const advisor = new Avatar('💹 투자 상담원', '#2d3b55', 'f', '21100');
 advisor.root.position.set(INVEST.x, FLOORS[INVEST.floor].y, INVEST.z);
 advisor.root.rotation.y = Math.PI / 2; // 손님(동쪽)을 바라봄
+advisor.setSit(true, 0.42); // 의자에 앉아 상담
 scene.add(advisor.root);
 bld.floors[INVEST.floor].colliders.push({ x1: INVEST.x - 0.3, z1: INVEST.z - 0.3, x2: INVEST.x + 0.3, z2: INVEST.z + 0.3, tall: false, top: 1.3 });
 const ADVISOR_LINES = ['어서 오세요! 💹 투자 상담실이에요. 주식이나 적금 상담해 드릴게요.', '주식은 1시간마다 가격이 바뀌어요. 오르면 빨강, 내리면 파랑!', '안전하게 모으고 싶으면 적금도 좋아요. 하루 0.1%씩 이자가 붙어요.', '월급은 매달 25일에 지갑으로 들어와요 💸'];
