@@ -352,6 +352,7 @@ export function createGarden(uniforms) {
     group,
     colliders,
     seats,
+    fountain: { x: fx, z: fz, water: [water, bowlWater, jet, crown, curtain, points, ...ripples.map((r) => r.m)], light: fLight },
     setDay(d) {
       curbLed.color.copy(CURB_LED).multiplyScalar(1 - 0.85 * d);
       bollardTop.color.copy(BOLLARD).multiplyScalar(1 - 0.8 * d);

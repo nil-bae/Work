@@ -98,6 +98,112 @@ const M = {
 // ---------- 조각 모아 그리기 (재질별로 합쳐 그리기 횟수 줄임) ----------
 const BOX = new THREE.BoxGeometry(1, 1, 1).toNonIndexed();
 const BALL = new THREE.IcosahedronGeometry(1, 1);
+const ICO = new THREE.IcosahedronGeometry(1, 0); // 아주 작은 구슬 (전구 · 장식)
+
+// ---------- 🎄 크리스마스 장식 (config.js의 xmas: false 로 끌 수 있음) ----------
+export const XMAS = CONFIG.xmas !== false;
+export const XM = {
+  pine: new THREE.MeshStandardMaterial({ color: 0x1f5c34, roughness: 0.85, flatShading: true }),
+  pineLight: new THREE.MeshStandardMaterial({ color: 0x2d7a42, roughness: 0.85, flatShading: true }),
+  snow: new THREE.MeshStandardMaterial({ color: 0xf3f6fb, roughness: 0.9 }),
+  ornRed: new THREE.MeshStandardMaterial({ color: 0xd11f2d, roughness: 0.3, metalness: 0.3 }),
+  ornGold: new THREE.MeshStandardMaterial({ color: 0xe2b23f, roughness: 0.3, metalness: 0.6 }),
+  ornSilver: new THREE.MeshStandardMaterial({ color: 0xdde3ec, roughness: 0.25, metalness: 0.7 }),
+  giftRed: new THREE.MeshStandardMaterial({ color: 0xc8202c, roughness: 0.55 }),
+  giftGreen: new THREE.MeshStandardMaterial({ color: 0x268a4e, roughness: 0.55 }),
+  giftBlue: new THREE.MeshStandardMaterial({ color: 0x3769d6, roughness: 0.55 }),
+  giftWhite: new THREE.MeshStandardMaterial({ color: 0xf2efe8, roughness: 0.55 }),
+  coal: new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.8 }),
+  carrot: new THREE.MeshStandardMaterial({ color: 0xf07a1a, roughness: 0.6 }),
+  // 반짝이는 전구 (밤에 은은하게 번짐) — 색마다 하나씩, update에서 번갈아 깜빡임
+  bulbR: new THREE.MeshBasicMaterial({ color: C(1.9, 0.25, 0.25) }),
+  bulbG: new THREE.MeshBasicMaterial({ color: C(1.7, 1.3, 0.35) }),
+  bulbB: new THREE.MeshBasicMaterial({ color: C(0.45, 0.85, 2.0) }),
+  bulbW: new THREE.MeshBasicMaterial({ color: C(1.7, 1.6, 1.35) }),
+  star: new THREE.MeshBasicMaterial({ color: C(2.4, 1.9, 0.6) }),
+};
+const XM_BULBS = ['bulbR', 'bulbG', 'bulbB', 'bulbW'];
+const XM_BASE = Object.fromEntries([...XM_BULBS, 'star'].map((k) => [k, XM[k].color.clone()]));
+export const xmasBulb = (i) => XM[XM_BULBS[i % 4]];
+let xDay = 1;
+export function xmasTwinkle(t, day = xDay) {
+  xDay = day;
+  XM_BULBS.forEach((k, i) => { const w = 0.55 + 0.45 * Math.max(0, Math.sin(t * 2.2 + i * 1.6)); XM[k].color.copy(XM_BASE[k]).multiplyScalar((1 - 0.45 * day) * w); });
+  XM.star.color.copy(XM_BASE.star).multiplyScalar((1 - 0.3 * day) * (0.85 + 0.15 * Math.sin(t * 3)));
+}
+function xrng(seed) { let v = seed >>> 0; return () => ((v = (v * 1664525 + 1013904223) >>> 0) / 4294967296); }
+// 트리: 원뿔 4단 + 장식 구슬 + 나선 전구 + 별 (y = 바닥, h = 키, rr = 밑동 반지름 비율)
+export function xmasTree(k, x, y, z, h, rr = 0.34, seed = 1) {
+  const rnd = xrng(seed * 977 + 13), R = h * rr, base = y + h * 0.1, top = y + h * 0.95;
+  k.cyl(h * 0.045, h * 0.12, x, y, z, M.walnut, 8);
+  for (let i = 0; i < 4; i++) {
+    const rad = R * (1 - i * 0.22), hh = h * 0.36, by = base + i * h * 0.19;
+    k.add(new THREE.ConeGeometry(rad, hh, 10), i % 2 ? XM.pineLight : XM.pine, x, by + hh / 2, z, i * 0.5);
+  }
+  const env = (yy) => R * Math.max(0.05, 1 - (yy - base) / (top - base)) * 0.92; // 대략적인 겉면 반지름
+  const orn = [XM.ornRed, XM.ornGold, XM.ornSilver, XM.ornRed];
+  const nO = Math.round(10 + h * 7);
+  for (let i = 0; i < nO; i++) {
+    const yy = base + 0.05 * h + rnd() * (top - base - 0.15 * h), a = rnd() * Math.PI * 2, rr2 = env(yy) * (0.92 + rnd() * 0.06);
+    k.add(BALL, orn[i % 4], x + Math.cos(a) * rr2, yy, z + Math.sin(a) * rr2, 0, h * 0.028, h * 0.028, h * 0.028);
+  }
+  const nB = Math.round(30 + h * 14), turns = 5;
+  for (let i = 0; i < nB; i++) {
+    const t = i / nB, yy = base + t * (top - base - 0.05 * h), a = t * turns * Math.PI * 2, rr2 = env(yy) * 1.04;
+    k.add(ICO, xmasBulb(i), x + Math.cos(a) * rr2, yy, z + Math.sin(a) * rr2, 0, h * 0.014, h * 0.014, h * 0.014);
+  }
+  k.add(new THREE.OctahedronGeometry(1, 0), XM.star, x, top + h * 0.05, z, 0.4, h * 0.07, h * 0.09, h * 0.035);
+}
+// 선물 상자 더미
+export function xmasGifts(k, x, z, n, spread, seed = 1, y = 0) {
+  const rnd = xrng(seed * 31 + 7), mats = [XM.giftRed, XM.giftGreen, XM.giftBlue, XM.giftWhite];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + rnd(), d = spread * (0.6 + rnd() * 0.4), w = 0.22 + rnd() * 0.22, hh = 0.16 + rnd() * 0.2;
+    const gx = x + Math.cos(a) * d, gz = z + Math.sin(a) * d, ry = rnd() * 1.5;
+    k.box(w, hh, w, gx, y, gz, mats[i % 4], ry);
+    k.add(BOX, XM.ornGold, gx, y + hh / 2, gz, ry, w + 0.01, hh + 0.01, 0.035);
+    k.add(BOX, XM.ornGold, gx, y + hh / 2, gz, ry, 0.035, hh + 0.01, w + 0.01);
+    k.add(ICO, XM.ornGold, gx, y + hh + 0.03, gz, ry, 0.05, 0.035, 0.05);
+  }
+}
+// 눈사람
+function snowman(k, x, z, ry = 0) {
+  const s = Math.sin(ry), c = Math.cos(ry), fx = (d) => x + s * d, fz = (d) => z + c * d;
+  k.add(BALL, XM.snow, x, 0.42, z, 0, 0.42, 0.4, 0.42); k.add(BALL, XM.snow, x, 0.98, z, 0, 0.3, 0.29, 0.3); k.add(BALL, XM.snow, x, 1.4, z, 0, 0.21, 0.2, 0.21);
+  for (const e of [-1, 1]) k.add(ICO, XM.coal, fx(0.19) + c * e * 0.07, 1.45, fz(0.19) - s * e * 0.07, 0, 0.025, 0.025, 0.025);
+  for (let i = 0; i < 3; i++) k.add(ICO, XM.coal, fx(0.29 - i * 0.004), 1.08 - i * 0.12, fz(0.29 - i * 0.004), 0, 0.03, 0.03, 0.03);
+  k.add(new THREE.ConeGeometry(0.035, 0.18, 8).rotateX(Math.PI / 2), XM.carrot, fx(0.27), 1.39, fz(0.27), ry);
+  k.add(new THREE.TorusGeometry(0.19, 0.05, 6, 16).rotateX(Math.PI / 2), XM.ornRed, x, 1.2, z);
+  k.box(0.08, 0.32, 0.05, fx(0.12) + c * 0.12, 1.02, fz(0.12) - s * 0.12, XM.ornRed, ry);              // 목도리 끝
+  k.cyl(0.2, 0.025, x, 1.56, z, XM.coal, 14); k.cyl(0.13, 0.22, x, 1.58, z, XM.coal, 14);              // 모자
+  for (const e of [-1, 1]) k.add(new THREE.CylinderGeometry(0.015, 0.02, 0.5, 5).rotateZ(e * 1.1), M.walnut, x + c * e * 0.42, 1.1, z - s * e * 0.42, ry);
+}
+// 사탕 지팡이
+function candyCane(k, x, z, h = 1.2, ry = 0) {
+  for (let i = 0; i < 8; i++) k.cyl(0.05, h / 8, x, (i * h) / 8, z, i % 2 ? XM.giftWhite : XM.ornRed, 10);
+  k.add(new THREE.TorusGeometry(0.16, 0.05, 8, 14, Math.PI).rotateY(ry), XM.ornRed, x + Math.cos(ry) * 0.16, h, z - Math.sin(ry) * 0.16);
+}
+// 유리창 윗가장자리를 따라 늘어진 가랜드 + 색 전구 + 리본
+function xmasGarland(k, y = CEIL - 0.22) {
+  const ix = HX - 0.22, iz = HZ - 0.22;
+  const sides = [[-ix, -iz, ix, -iz], [ix, -iz, ix, iz], [ix, iz, -ix, iz], [-ix, iz, -ix, -iz]];
+  let b = 0;
+  for (const [x0, z0, x1, z1] of sides) {
+    const L = Math.hypot(x1 - x0, z1 - z0), spans = Math.round(L / 1.7);
+    for (let sIdx = 0; sIdx < spans; sIdx++) {
+      const n = 8;
+      for (let j = 0; j <= n; j++) {
+        const t = (sIdx + j / n) / spans, sag = Math.sin((j / n) * Math.PI) * 0.22;
+        const x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t;
+        k.add(ICO, j % 2 ? XM.pine : XM.pineLight, x, y - sag, z, j, 0.1, 0.08, 0.1);
+        if (j % 2 === 1) k.add(ICO, xmasBulb(b++), x, y - sag - 0.08, z, 0, 0.035, 0.035, 0.035);
+      }
+      const ax = x0 + ((x1 - x0) * sIdx) / spans, az = z0 + ((z1 - z0) * sIdx) / spans;
+      for (const e of [-1, 1]) k.add(new THREE.ConeGeometry(0.06, 0.12, 4).rotateZ(e * Math.PI / 2), XM.ornRed, ax, y + 0.02, az, Math.atan2(x1 - x0, z1 - z0) + Math.PI / 2);
+      k.add(ICO, XM.ornRed, ax, y + 0.02, az, 0, 0.04, 0.04, 0.04);
+    }
+  }
+}
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 // 모서리를 둥글린 상자 (같은 크기는 한 번만 만들어 재사용)
 const RBOX = new Map();
@@ -254,6 +360,13 @@ function stool(k, x, y, z, ry = 0, h = 0.5) {
 }
 
 function plant(k, col, x, y, z, s = 1) {
+  if (XMAS && s >= 0.9) { // 크리스마스: 큰 화분은 작은 트리 + 선물로
+    k.cyl(0.3 * s, 0.3 * s, x, y, z, XM.ornRed, 14, 0.34 * s);
+    xmasTree(k, x, y + 0.3 * s, z, 1.9 * s, 0.3, Math.round(x * 7 + z * 3));
+    xmasGifts(k, x, z, 3, 0.5 * s, Math.round(x * 5 - z), y);
+    col(x - 0.5 * s, z - 0.5 * s, x + 0.5 * s, z + 0.5 * s);
+    return;
+  }
   k.cyl(0.32 * s, 0.6 * s, x, y, z, M.pot, 14, 0.38 * s);
   k.ball(0.55 * s, x, y + 1.15 * s, z, M.leaf, 1.35);
   k.ball(0.35 * s, x + 0.2 * s, y + 1.7 * s, z - 0.1 * s, M.leaf);
@@ -959,10 +1072,26 @@ export function createBuilding() {
     };
     for (let i = 0; i < 4; i++) { const [a, b] = poles[i], [c, d] = poles[(i + 1) % 4]; string(a, b, c, d, 0.5); }
     string(-6.5, -1.2, 9.5, 6.2, 0.7);
-    for (const [x, y, z] of roofLights) k.ball(0.045, x, y, z, M.bulb);
+    if (XMAS) string(9.5, -1.2, -6.5, 6.2, 0.7);
+    roofLights.forEach(([x, y, z], i) => (XMAS ? k.add(ICO, xmasBulb(i), x, y, z, 0, 0.055, 0.055, 0.055) : k.ball(0.045, x, y, z, M.bulb)));
+    if (XMAS) {
+      // 🎄 옥상 크리스마스: 큰 트리 · 선물 더미 · 눈사람 · 사탕 지팡이 · 눈 쌓인 화분 · 눈 더미
+      xmasTree(k, 0, 0.05, -3.2, 4.4, 0.32, 5);
+      xmasGifts(k, 0, -3.2, 9, 1.75, 3, 0.05);
+      col(-1.5, -4.7, 1.5, -1.7, false, 0.5); F.colliders[F.colliders.length - 1].noStand = true;
+      snowman(k, -4.6, 0.7, 0.4); col(-5.05, 0.25, -4.15, 1.15, false, 1.6); F.colliders[F.colliders.length - 1].noStand = true;
+      snowman(k, 4.4, 1.0, -0.5); col(3.95, 0.55, 4.85, 1.45, false, 1.6); F.colliders[F.colliders.length - 1].noStand = true;
+      for (const [x, z, ry] of [[-2.3, -2.2, 0], [2.3, -2.2, Math.PI], [-2.3, -4.3, 0], [2.3, -4.3, Math.PI]]) candyCane(k, x, z, 1.1, ry);
+      for (const [x, z] of [[-6, 5.6], [7.5, 5.6], [-3.5, -5.6], [9, -5.6]]) k.add(BALL, XM.snow, x, 2.42, z, 0, 0.62, 0.22, 0.62);
+      for (const [x, z, w] of [[-9.2, 6.0, 1.3], [9.3, 0.8, 1.0], [-6.8, -6.0, 1.1], [6.5, 6.1, 1.4], [-0.5, 6.1, 0.9]]) k.add(BALL, XM.snow, x, 0.05, z, 0, w, 0.18, w * 0.6);
+      // 옥상 난간을 따라 전구
+      for (let i = 0, x = -9.8; x <= 9.8; x += 0.5, i++) { k.add(ICO, xmasBulb(i), x, 1.08, -6.42, 0, 0.05, 0.05, 0.05); k.add(ICO, xmasBulb(i + 1), x, 1.08, 6.42, 0, 0.05, 0.05, 0.05); }
+      for (let i = 0, z = -6.3; z <= 6.3; z += 0.5, i++) { k.add(ICO, xmasBulb(i + 2), 9.82, 1.08, z, 0, 0.05, 0.05, 0.05); k.add(ICO, xmasBulb(i + 3), -9.82, 1.08, z, 0, 0.05, 0.05, 0.05); }
+    }
   }
 
   SEATS = null;
+  if (XMAS) for (let i = 0; i < ROOF; i++) xmasGarland(floors[i].kit); // 🎄 층마다 창가 가랜드
   floors.forEach((F) => { F.kit.fitTops(F.colliders); F.kit.flush(F.group); delete F.kit; });
 
   // 샌드백 (위 봉에 매달려 흔들림)
@@ -997,7 +1126,7 @@ export function createBuilding() {
   fireLight.position.set(0, 0.9, 0);
   fire.add(fireLight);
   floors[ROOF].group.add(fire);
-  let fireT = 0;
+  let fireT = 0, xT = 0;
 
   const group = new THREE.Group();
   group.add(shell, ...floors.map((f) => f.group));
@@ -1045,6 +1174,7 @@ export function createBuilding() {
       applyRig();
     },
     setDay(d) {
+      if (XMAS) xmasTwinkle(xT, d);
       hemi.intensity = 0.9 + 1.1 * d;
       M.ceiling.emissive.setRGB(0.2 + 0.28 * d, 0.19 + 0.27 * d, 0.17 + 0.25 * d); // 밤에는 천장도 어둡게
       hemi.color.setRGB(0.6 + 0.3 * d, 0.65 + 0.3 * d, 0.82 + 0.15 * d);
@@ -1057,6 +1187,7 @@ export function createBuilding() {
       applyRig();
     },
     update(dt, player) {
+      if (XMAS) { xT += dt; xmasTwinkle(xT); }
       // 불꽃 일렁임 (옥상이 보일 때만)
       if (floors[ROOF].group.visible) {
         fireT += dt;
@@ -1091,4 +1222,4 @@ export function createBuilding() {
   };
 }
 
-export { Kit, M as MATERIALS, chair, plant, canvasTex };
+export { Kit, M as MATERIALS, chair, plant, canvasTex, ICO, BALL };
