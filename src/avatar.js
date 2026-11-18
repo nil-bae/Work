@@ -344,10 +344,10 @@ export function makeAcc(id) {
       break;
     case 'wings': case 'butterfly': case 'bat': { // 날개 (등)
       const round = id !== 'bat', mat = id === 'wings' ? AM.feather : id === 'bat' ? AM.bat : AM.bfly;
-      const W = id === 'butterfly' ? 0.3 : 0.38, Hh = id === 'butterfly' ? 0.34 : 0.3;
+      const W = id === 'butterfly' ? 0.34 : 0.46, Hh = id === 'butterfly' ? 0.38 : 0.36;
       const wl = [];
       for (const e of [-1, 1]) {
-        const pivot = new THREE.Group(); pivot.position.set(e * 0.05, 0.47, -0.17); g.add(pivot);
+        const pivot = new THREE.Group(); pivot.position.set(e * 0.05, 0.5, -0.19); g.add(pivot);
         const m = new THREE.Mesh(wingShape(W, Hh, round), mat); m.scale.x = e; pivot.add(m);
         if (id === 'butterfly') { const m2 = new THREE.Mesh(wingShape(W * 0.7, Hh * 0.8, true), AM.bfly2); m2.scale.set(e, -1, 1); m2.position.y = -0.02; pivot.add(m2); }
         if (id === 'wings') for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(wingShape(W * (0.8 - i * 0.18), Hh * 0.5, true), AM.feather); f.scale.set(e, -0.7, 1); f.position.set(0, -0.04 - i * 0.05, 0.005 * (i + 1)); pivot.add(f); }

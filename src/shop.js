@@ -89,9 +89,9 @@ export function createShop(colliders) {
   for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) kr.add(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 16), SM.spot, 19.3 + i * 2.2, Hh - 0.05, -6 + j * 4);
   // 계산대 (금테 + 유리) + 뒤 진열장
   const { x: ccx, z: ccz } = SHOP.counter;
-  k.box(0.7, 0.95, 2.4, ccx + 0.6, 0, ccz, SM.white); k.box(0.74, 0.05, 2.44, ccx + 0.6, 0.95, ccz, SM.gold);
-  k.box(0.02, 0.6, 2.2, ccx + 0.24, 0.2, ccz, SM.gold);
-  col(ccx + 0.25, ccz - 1.22, ccx + 0.95, ccz + 1.22, false, 1.0);
+  k.box(0.7, 0.58, 2.4, ccx + 0.6, 0, ccz, SM.white); k.box(0.74, 0.05, 2.44, ccx + 0.6, 0.58, ccz, SM.gold); // 캐릭터 키에 맞춘 낮은 계산대
+  k.box(0.02, 0.36, 2.2, ccx + 0.24, 0.12, ccz, SM.gold);
+  col(ccx + 0.25, ccz - 1.22, ccx + 0.95, ccz + 1.22, false, 0.63);
   k.box(0.35, 2.4, 3.4, x1 - 0.3, 0, ccz, SM.black);
   for (const y of [0.9, 1.5, 2.1]) k.box(0.36, 0.03, 3.3, x1 - 0.3, y, ccz, SM.gold);
   for (let i = 0; i < 6; i++) k.add(new THREE.BoxGeometry(0.22, 0.28, 0.32), [SM.velvet, SM.cream, SM.gold][i % 3], x1 - 0.32, 0.93 + Math.floor(i / 3) * 0.6 + 0.14, ccz - 0.9 + (i % 3) * 0.9); // 쇼핑백 · 상자
