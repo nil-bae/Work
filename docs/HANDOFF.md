@@ -129,4 +129,5 @@ docs/HANDOFF.md 를 먼저 읽고 그대로 이어서 해줘.
 
 ## 접속자 '나갔다 들어왔다' 방지
 - 숨은 탭도 20초마다 내 상태를 보냄(main.js setInterval). 브라우저가 숨은 탭 타이머를 1분에 한 번으로 늦춰도 되도록, 소식이 2분 30초 없을 때만 나간 것으로 정리(net.js sweep). Supabase presence leave는 바로 지우지 않고 1분쯤 뒤 정리.
+- 창을 X로 닫으면(pagehide) 'leave' 방송을 실시간 연결 + keepalive fetch(/realtime/v1/api/broadcast)로 보내서 다른 사람 화면에서 바로 사라짐.
 - 나갔다가 5분 안에 다시 온 사람은 '들어왔어요'를 또 띄우지 않음(recentlyGone).

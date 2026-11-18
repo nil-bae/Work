@@ -34,6 +34,8 @@ export function connect(me, handlers) {
         .on('broadcast', { event: 'chat' }, ({ payload }) => handlers.onChat(payload))
         .on('broadcast', { event: 'sync' }, () => handlers.onSync?.())
         .on('broadcast', { event: 'ev' }, ({ payload }) => handlers.onEvent?.(payload))
+        // 창을 X로 닫은 사람은 바로 정리
+        .on('broadcast', { event: 'leave' }, ({ payload }) => { if (payload?.id) { lastSeen.delete(payload.id); handlers.onLeave(payload.id); } })
         .on('presence', { event: 'join' }, () => handlers.onSync?.())
         // 잠깐 끊겼다 돌아오는 경우가 많아서, 나갔다는 신호만으로 바로 지우지 않음 (아래 정리에서 판단)
         .on('presence', { event: 'leave' }, ({ key }) => { const t = lastSeen.get(key); if (t) lastSeen.set(key, Math.min(t, performance.now() - 90000)); })
@@ -50,7 +52,18 @@ export function connect(me, handlers) {
     };
     open();
     sendRaw = (event, payload) => channel?.send({ type: 'broadcast', event, payload });
-    close = () => { try { supa.removeChannel(channel); } catch {} };
+    close = () => {
+      // 창을 닫을 때 '나가요'를 바로 알림: 실시간 연결로 한 번 + 창이 닫혀도 끝까지 가는 요청(keepalive)으로 한 번
+      try { channel?.send({ type: 'broadcast', event: 'leave', payload: { id: me.id } }); } catch {}
+      try {
+        fetch(`${CONFIG.supabaseUrl}/realtime/v1/api/broadcast`, {
+          method: 'POST', keepalive: true,
+          headers: { 'Content-Type': 'application/json', apikey: CONFIG.supabaseAnonKey, Authorization: `Bearer ${CONFIG.supabaseAnonKey}` },
+          body: JSON.stringify({ messages: [{ topic: 'work-tower-88f', event: 'leave', payload: { id: me.id } }] }),
+        }).catch(() => {});
+      } catch {}
+      try { supa.removeChannel(channel); } catch {}
+    };
     // 탭을 다녀오면 연결 상태를 확인하고, 끊겼으면 다시 연결
     reconnect = () => {
       const st = channel?.state;
@@ -95,6 +108,8 @@ export function connect(me, handlers) {
   addEventListener('online', () => reconnect());
 
   window.addEventListener('pagehide', () => { try { close(); } catch {} });
+  // 뒤로 가기 등으로 페이지가 되살아나면 다시 연결
+  window.addEventListener('pageshow', (e) => { if (e.persisted) { try { reconnect(); } catch {} } });
 
   return {
     sendState(p) { sendRaw('state', p); },
