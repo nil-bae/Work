@@ -132,38 +132,98 @@ export function xmasTwinkle(t, day = xDay) {
   XM.star.color.copy(XM_BASE.star).multiplyScalar((1 - 0.3 * day) * (0.85 + 0.15 * Math.sin(t * 3)));
 }
 function xrng(seed) { let v = seed >>> 0; return () => ((v = (v * 1664525 + 1013904223) >>> 0) / 4294967296); }
-// 트리: 원뿔 4단 + 장식 구슬 + 나선 전구 + 별 (y = 바닥, h = 키, rr = 밑동 반지름 비율)
+// 트리 (참고 사진처럼 촘촘하게): 가지 끝이 들쭉날쭉한 원뿔 여러 단 + 빼곡한 따뜻한 전구 + 빨강·금 구슬 + 큰 눈꽃 장식
+// + 꼭대기 금빛 별 + 밑동 초록 화환 (y = 바닥, h = 키, rr = 밑동 반지름 비율)
+const STAR_GEO = (() => {
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 0.42 : 1; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.22, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 1 });
+  g.translate(0, 0, -0.11); return g;
+})();
+const FLAKE_GEO = (() => { // 큰 눈꽃 (평평한 6갈래)
+  const parts = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i * Math.PI) / 3, arm = new THREE.BoxGeometry(0.09, 1, 0.04).translate(0, 0.5, 0);
+    const pieces = [arm];
+    for (const [y, l] of [[0.45, 0.34], [0.72, 0.22]]) for (const e of [-1, 1]) pieces.push(new THREE.BoxGeometry(0.07, l, 0.04).translate(0, l / 2, 0).rotateZ(e * 0.8).translate(0, y, 0));
+    for (const pc of pieces) parts.push(pc.toNonIndexed().rotateZ(a));
+  }
+  parts.push(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 6).rotateX(Math.PI / 2).toNonIndexed());
+  return mergeGeometries(parts);
+})();
 export function xmasTree(k, x, y, z, h, rr = 0.34, seed = 1) {
-  const rnd = xrng(seed * 977 + 13), R = h * rr, base = y + h * 0.1, top = y + h * 0.95;
-  k.cyl(h * 0.045, h * 0.12, x, y, z, M.walnut, 8);
-  for (let i = 0; i < 4; i++) {
-    const rad = R * (1 - i * 0.22), hh = h * 0.36, by = base + i * h * 0.19;
-    k.add(new THREE.ConeGeometry(rad, hh, 10), i % 2 ? XM.pineLight : XM.pine, x, by + hh / 2, z, i * 0.5);
+  const rnd = xrng(seed * 977 + 13), R = h * rr, base = y + h * 0.08, top = y + h * 0.93;
+  const big = h > 3;
+  k.cyl(h * 0.04, h * 0.1, x, y, z, M.walnut, 8);
+  // 가지: 아래가 넓고 위로 갈수록 좁은 원뿔 7단 (단마다 조금씩 돌려서 들쭉날쭉)
+  const tiers = 7;
+  for (let i = 0; i < tiers; i++) {
+    const f = i / tiers, rad = R * (1 - f * 0.86), hh = h * 0.24, by = base + f * (top - base - h * 0.12);
+    k.add(new THREE.ConeGeometry(rad, hh, 14), i % 2 ? XM.pineLight : XM.pine, x, by + hh / 2, z, i * 0.37);
   }
-  const env = (yy) => R * Math.max(0.05, 1 - (yy - base) / (top - base)) * 0.92; // 대략적인 겉면 반지름
-  const orn = [XM.ornRed, XM.ornGold, XM.ornSilver, XM.ornRed];
-  const nO = Math.round(10 + h * 7);
-  for (let i = 0; i < nO; i++) {
-    const yy = base + 0.05 * h + rnd() * (top - base - 0.15 * h), a = rnd() * Math.PI * 2, rr2 = env(yy) * (0.92 + rnd() * 0.06);
-    k.add(BALL, orn[i % 4], x + Math.cos(a) * rr2, yy, z + Math.sin(a) * rr2, 0, h * 0.028, h * 0.028, h * 0.028);
+  const env = (yy) => R * Math.max(0.04, 1 - (yy - base) / (top - base) * 0.95) * 0.9; // 겉면 반지름
+  const onSurf = (yy, a, k2 = 1) => [x + Math.cos(a) * env(yy) * k2, z + Math.sin(a) * env(yy) * k2];
+  // 가지 끝 덩어리 (윤곽을 풍성하게)
+  const nTuft = big ? Math.round(h * 26) : 24;
+  for (let i = 0; i < nTuft; i++) {
+    const yy = base + rnd() * (top - base) * 0.92, a = rnd() * Math.PI * 2, [px, pz] = onSurf(yy, a, 0.98);
+    k.add(ICO, rnd() < 0.5 ? XM.pine : XM.pineLight, px, yy, pz, a, h * 0.035, h * 0.022, h * 0.035);
   }
-  const nB = Math.round(30 + h * 14), turns = 5;
+  // 따뜻한 전구 (빼곡하게) — 대부분 따뜻한 흰빛, 가끔 금빛
+  const nB = big ? Math.round(h * 34) : Math.round(28 + h * 14);
   for (let i = 0; i < nB; i++) {
-    const t = i / nB, yy = base + t * (top - base - 0.05 * h), a = t * turns * Math.PI * 2, rr2 = env(yy) * 1.04;
-    k.add(ICO, xmasBulb(i), x + Math.cos(a) * rr2, yy, z + Math.sin(a) * rr2, 0, h * 0.014, h * 0.014, h * 0.014);
+    const yy = base + Math.pow(rnd(), 0.85) * (top - base) * 0.97, a = rnd() * Math.PI * 2, [px, pz] = onSurf(yy, a, 1.03);
+    k.add(ICO, i % 5 === 0 ? XM.bulbG : XM.bulbW, px, yy, pz, 0, h * (big ? 0.0105 : 0.009), h * (big ? 0.0105 : 0.009), h * (big ? 0.0105 : 0.009));
   }
-  k.add(new THREE.OctahedronGeometry(1, 0), XM.star, x, top + h * 0.05, z, 0.4, h * 0.07, h * 0.09, h * 0.035);
+  // 구슬 장식: 빨강 · 금 (크기 여러 가지)
+  const orn = [XM.ornRed, XM.ornGold, XM.ornRed, XM.ornGold, XM.ornSilver];
+  const nO = big ? Math.round(h * 24) : Math.round(12 + h * 7);
+  for (let i = 0; i < nO; i++) {
+    const yy = base + rnd() * (top - base) * 0.94, a = rnd() * Math.PI * 2, [px, pz] = onSurf(yy, a, 1.0), sz = big ? h * (0.011 + rnd() * 0.013) : h * (0.016 + rnd() * 0.02);
+    k.add(BALL, orn[i % orn.length], px, yy, pz, 0, sz, sz, sz);
+  }
+  // 큰 눈꽃 장식 (밖을 바라보게)
+  const nF = big ? 7 : 2;
+  for (let i = 0; i < nF; i++) {
+    const yy = base + (0.15 + 0.7 * ((i * 0.37) % 1)) * (top - base), a = i * 2.4 + rnd(), [px, pz] = onSurf(yy, a, 1.06);
+    k.add(FLAKE_GEO, XM.giftWhite, px, yy, pz, Math.atan2(Math.cos(a), Math.sin(a)), h * 0.06, h * 0.06, h * 0.06);
+  }
+  // 꼭대기 별 (금빛, 앞뒤로 보이게 두 장 교차)
+  for (const ry of [0, Math.PI / 2]) k.add(STAR_GEO, XM.star, x, top + h * 0.06, z, ry, h * 0.06, h * 0.06, h * 0.06);
+  // 밑동 초록 화환 + 빨간 구슬
+  if (big) {
+    for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; k.add(ICO, i % 2 ? XM.pine : XM.pineLight, x + Math.cos(a) * R * 1.05, y + h * 0.02, z + Math.sin(a) * R * 1.05, a, h * 0.045, h * 0.03, h * 0.045); }
+    for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2 + 0.2; k.add(BALL, i % 2 ? XM.ornRed : XM.ornGold, x + Math.cos(a) * R * 1.12, y + h * 0.04, z + Math.sin(a) * R * 1.12, 0, h * 0.014, h * 0.014, h * 0.014); }
+  }
+}
+// 북극곰 인형 (트리 옆에 앉아 있음)
+export function polarBear(k, x, y, z, s = 1, ry = 0) {
+  const W = XM.giftWhite, sn = Math.sin(ry), cs = Math.cos(ry), P = (fx, fy, fz) => [x + (cs * fx + sn * fz) * s, y + fy * s, z + (-sn * fx + cs * fz) * s];
+  const b = (fx, fy, fz, rx, ryy, rz, mat = W) => k.add(BALL, mat, ...P(fx, fy, fz), ry, rx * s, ryy * s, rz * s);
+  b(0, 0.42, 0, 0.42, 0.4, 0.36);               // 몸
+  b(0, 0.95, 0.1, 0.26, 0.24, 0.24);            // 머리
+  b(0, 0.9, 0.32, 0.11, 0.09, 0.1);             // 주둥이
+  b(0, 0.93, 0.42, 0.035, 0.03, 0.03, XM.coal); // 코
+  for (const e of [-1, 1]) {
+    b(e * 0.08, 1.02, 0.31, 0.025, 0.025, 0.02, XM.coal);   // 눈
+    b(e * 0.17, 1.15, 0.05, 0.07, 0.07, 0.05);              // 귀
+    b(e * 0.28, 0.4, 0.25, 0.12, 0.2, 0.12);                // 앞발
+    b(e * 0.22, 0.12, 0.32, 0.14, 0.1, 0.18);               // 뒷발
+  }
+  k.add(new THREE.TorusGeometry(0.2, 0.05, 6, 16).rotateX(Math.PI / 2), XM.ornRed, ...P(0, 0.74, 0.08), ry, s, s, s); // 빨간 목도리
 }
 // 선물 상자 더미
 export function xmasGifts(k, x, z, n, spread, seed = 1, y = 0) {
-  const rnd = xrng(seed * 31 + 7), mats = [XM.giftRed, XM.giftGreen, XM.giftBlue, XM.giftWhite];
+  const rnd = xrng(seed * 31 + 7), mats = [XM.giftRed, XM.giftWhite, XM.giftRed, XM.ornGold, XM.giftGreen, XM.giftBlue];
   for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + rnd(), d = spread * (0.6 + rnd() * 0.4), w = 0.22 + rnd() * 0.22, hh = 0.16 + rnd() * 0.2;
+    const a = (i / n) * Math.PI * 2 + rnd(), d = spread * (spread > 2 ? 0.9 + rnd() * 0.1 : 0.6 + rnd() * 0.4), w = (0.22 + rnd() * 0.22) * (spread > 2 ? 2.2 : 1), hh = (0.16 + rnd() * 0.2) * (spread > 2 ? 2.2 : 1);
     const gx = x + Math.cos(a) * d, gz = z + Math.sin(a) * d, ry = rnd() * 1.5;
-    k.box(w, hh, w, gx, y, gz, mats[i % 4], ry);
-    k.add(BOX, XM.ornGold, gx, y + hh / 2, gz, ry, w + 0.01, hh + 0.01, 0.035);
-    k.add(BOX, XM.ornGold, gx, y + hh / 2, gz, ry, 0.035, hh + 0.01, w + 0.01);
-    k.add(ICO, XM.ornGold, gx, y + hh + 0.03, gz, ry, 0.05, 0.035, 0.05);
+    k.box(w, hh, w, gx, y, gz, mats[i % mats.length], ry);
+    const rb = mats[i % mats.length] === XM.ornGold ? XM.ornRed : mats[i % mats.length] === XM.giftRed ? XM.giftWhite : XM.ornRed;
+    k.add(BOX, rb, gx, y + hh / 2, gz, ry, w + 0.01, hh + 0.01, w * 0.14);
+    k.add(BOX, rb, gx, y + hh / 2, gz, ry, w * 0.14, hh + 0.01, w + 0.01);
+    for (const e of [-1, 1]) k.add(new THREE.TorusGeometry(1, 0.35, 6, 12), rb, gx + Math.cos(ry) * e * w * 0.13, y + hh + w * 0.08, gz - Math.sin(ry) * e * w * 0.13, ry, w * 0.13, w * 0.11, w * 0.13); // 리본 고리
+    k.add(ICO, rb, gx, y + hh + 0.02, gz, ry, w * 0.08, w * 0.06, w * 0.08);
   }
 }
 // 눈사람
@@ -1078,6 +1138,7 @@ export function createBuilding() {
       // 🎄 옥상 크리스마스: 큰 트리 · 선물 더미 · 눈사람 · 사탕 지팡이 · 눈 쌓인 화분 · 눈 더미
       xmasTree(k, 0, 0.05, -3.2, 4.4, 0.32, 5);
       xmasGifts(k, 0, -3.2, 9, 1.75, 3, 0.05);
+      polarBear(k, 1.3, 0.05, -1.75, 0.7, 0.3);
       col(-1.5, -4.7, 1.5, -1.7, false, 0.5); F.colliders[F.colliders.length - 1].noStand = true;
       snowman(k, -4.6, 0.7, 0.4); col(-5.05, 0.25, -4.15, 1.15, false, 1.6); F.colliders[F.colliders.length - 1].noStand = true;
       snowman(k, 4.4, 1.0, -0.5); col(3.95, 0.55, 4.85, 1.45, false, 1.6); F.colliders[F.colliders.length - 1].noStand = true;

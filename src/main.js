@@ -1301,6 +1301,7 @@ function applyDay(d) {
   renderer.toneMappingExposure = 1.0 - 0.1 * d;
   bld.setDay(d);
   garden.setDay(d);
+  if (XMAS) garden.fountain.light.intensity *= 4; // 광장 트리 조명
   traffic.setDay(d);
 }
 function setDayButtons() {

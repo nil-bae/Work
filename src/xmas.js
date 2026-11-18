@@ -1,7 +1,7 @@
 // 🎄 크리스마스: 광장 대형 트리 · 내리는 눈 · 루돌프 썰매 (모양과 비행 경로)
 // 끄려면 config.js에 xmas: false
 import * as THREE from 'three';
-import { Kit, MATERIALS as M, XM, XMAS, xmasTree, xmasGifts, xmasBulb, HX, HZ, ICO, BALL } from './building.js';
+import { Kit, MATERIALS as M, XM, XMAS, xmasTree, xmasGifts, xmasBulb, polarBear, HX, HZ, ICO, BALL } from './building.js';
 
 export { XMAS };
 
@@ -10,11 +10,13 @@ export function createPlazaTree(garden) {
   const g = new THREE.Group();
   const { x, z } = garden.fountain;
   garden.fountain.water.forEach((m) => (m.visible = false)); // 분수 물은 잠시 쉬고
-  garden.fountain.light.color.set(0xfff0d0);
+  garden.fountain.light.color.set(0xffd9a0); garden.fountain.light.position.set(x, 6.5, z + 6); garden.fountain.light.distance = 22; // 밤에 트리를 비추는 따뜻한 조명
   const k = new Kit();
   k.cyl(3.5, 0.06, x, 0.52, z, XM.snow, 40);                         // 수반에 쌓인 눈
-  xmasTree(k, x, 0.55, z, 13, 0.25, 7);
-  xmasGifts(k, x, z, 14, 3.15, 11, 0.58);
+  xmasTree(k, x, 0.55, z, 13, 0.22, 7);
+  xmasGifts(k, x, z, 18, 3.3, 11, 0.58);
+  polarBear(k, x + 2.0, 0.58, z + 2.55, 1.25, 0.6);
+  polarBear(k, x - 2.3, 0.58, z + 2.2, 0.9, -0.5);
   // 광장 둘레 작은 전구 기둥
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2 + 0.26, r = 8.7, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
