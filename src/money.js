@@ -1,5 +1,5 @@
 // 💰 월급 · 지갑 · 💹 투자 (모두 게임 속 가상 돈)
-// - 화면을 켜 두고 사옥에 있는 시간만큼 시급(2026년 최저임금 10,320원)으로 일급이 쌓임 (하루 최대 12시간)
+// - 사옥에 접속해 있는 시간만큼 시급(2026년 최저임금 10,320원)으로 일급이 쌓임 (다른 탭에 가 있어도 셈, 하루 최대 12시간)
 // - 쌓인 급여는 매달 25일(그 뒤 처음 들어올 때)에 지갑 현금으로 들어옴
 // - 3층 투자 상담실: 가상 주식 4종목(가격이 1시간마다 바뀜, 모두 같은 가격) · 적금(하루 0.1% 이자)
 // 저장: Supabase 'wallets' 표 (없으면 이 브라우저에만)
@@ -56,7 +56,7 @@ export function createMoney(api) {
     if (!w || !owner) return;
     dirty = false;
     const all = localAll(); all[owner] = pick(w); try { localStorage.setItem(LS, JSON.stringify(all)); } catch {}
-    if (!useLocal) supa.from('wallets').upsert({ name: owner, ...pick(w), updated_at: new Date().toISOString() }, { onConflict: 'name' })
+    if (!useLocal) supa.from('wallets').upsert({ name: owner, ...pick(w), day_secs: Math.floor(w.day_secs), updated_at: new Date().toISOString() }, { onConflict: 'name' })
       .then(({ error }) => { if (error) { console.warn('지갑 저장 실패', error.message); if (/wallets|relation|schema|permission|42P01|42501|PGRST/i.test(error.message + (error.code || ''))) useLocal = true; } });
   }
 
@@ -97,11 +97,19 @@ export function createMoney(api) {
   const dayPay = () => Math.min(w.day_secs, MAX_SECS) / 3600 * WAGE;
 
   // 1초마다: 화면이 켜져 있고 사옥 안에 있으면 근무 시간 +1초
-  let tick = 0;
+  // 실제 지난 시간(시계)으로 더함 → 다른 탭에 다녀와도(화면이 숨어 타이머가 느려져도) 멈추지 않고 이어짐
+  // 단, 컴퓨터가 잠자기했던 것처럼 한 번에 5분 넘게 비면 그 사이는 빼고 셈
+  let tick = 0, last = Date.now();
   setInterval(() => {
-    if (!w || document.hidden || !api.atWork()) return;
+    const t = Date.now(), gap = (t - last) / 1000; last = t;
+    if (!w || !api.atWork()) return;
     const notes = settle(); notes.forEach((n) => api.toast(n));
-    if (w.day_secs < MAX_SECS) { w.day_secs++; w.unpaid += WAGE / 3600; dirty = true; if (w.day_secs === MAX_SECS) api.toast(`⏰ 오늘 근무 12시간을 채웠어요! 오늘 일급은 ${won(dayPay())}이에요. 푹 쉬세요 😊`); }
+    const add = Math.min(gap > 300 ? 0 : gap, MAX_SECS - w.day_secs);
+    if (add > 0) {
+      w.day_secs += add; w.unpaid += (WAGE / 3600) * add; dirty = true;
+      if (w.day_secs >= MAX_SECS) api.toast(`⏰ 오늘 근무 12시간을 채웠어요! 오늘 일급은 ${won(dayPay())}이에요. 푹 쉬세요 😊`);
+    }
+    if (document.hidden) { if (dirty && ++tick % 2 === 0) save(); return; }
     chip();
     if (!$('walletModal').hidden) renderWallet();
     if (++tick % 60 === 0 && dirty) save();
@@ -129,7 +137,7 @@ export function createMoney(api) {
         <dt>📈 주식 평가액</dt><dd>${won(sv)} ${sv ? `<small class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : ''}${won(pl)}</small>` : ''}</dd>
         <dt>💎 총 자산</dt><dd><b>${won(w.cash + w.savings + sv)}</b></dd>
       </dl>
-      <p class="sub">시급 ${won(WAGE)}(2026년 최저임금) · 화면을 켜 두고 사옥에 있는 시간만 세요 · 매달 ${PAYDAY}일에 월급이 지갑으로 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
+      <p class="sub">시급 ${won(WAGE)}(2026년 최저임금) · 사옥에 접속해 있는 동안 세요(다른 탭에 가 있어도 OK) · 매달 ${PAYDAY}일에 월급이 지갑으로 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
   }
   function openWallet() { if (!w) return; renderWallet(); api.openModal('walletModal'); }
 

@@ -36,7 +36,7 @@ export function connect(me, handlers) {
         .on('broadcast', { event: 'ev' }, ({ payload }) => handlers.onEvent?.(payload))
         .on('presence', { event: 'join' }, () => handlers.onSync?.())
         // 잠깐 끊겼다 돌아오는 경우가 많아서, 나갔다는 신호만으로 바로 지우지 않음 (아래 정리에서 판단)
-        .on('presence', { event: 'leave' }, ({ key }) => { const t = lastSeen.get(key); if (t) lastSeen.set(key, Math.min(t, performance.now() - 50000)); })
+        .on('presence', { event: 'leave' }, ({ key }) => { const t = lastSeen.get(key); if (t) lastSeen.set(key, Math.min(t, performance.now() - 90000)); })
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED') {
             await channel.track({ name: me.name, color: me.color });
@@ -75,20 +75,20 @@ export function connect(me, handlers) {
     setTimeout(() => { handlers.onStatus('로컬 데모 · 같은 브라우저 탭끼리만 보여요', false); sendRaw('sync', { id: me.id }); }, 0);
   }
 
-  // 오래(1분) 소식이 없는 접속자만 정리 — 다른 탭에 잠깐 다녀와도 사라지지 않게
+  // 오래(2분 반) 소식이 없는 접속자만 정리 — 다른 탭에 다녀와도 사라지지 않게 (숨은 탭은 1분에 한 번쯤만 소식을 보낼 수 있음)
   let hiddenAt = 0;
   const sweep = setInterval(() => {
     if (document.hidden) return; // 내가 안 보는 동안은 정리하지 않음
     const now = performance.now();
     for (const [id, t] of lastSeen) {
-      if (now - t > 60000) { lastSeen.delete(id); handlers.onLeave(id); }
+      if (now - t > 150000) { lastSeen.delete(id); handlers.onLeave(id); }
     }
   }, 5000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { hiddenAt = performance.now(); return; }
     // 돌아오면: 다른 사람들의 마지막 시각을 지금으로 미루고, 다시 연결 · 서로 위치 다시 알림
     const now = performance.now();
-    for (const id of lastSeen.keys()) lastSeen.set(id, Math.max(lastSeen.get(id), now - 20000));
+    for (const id of lastSeen.keys()) lastSeen.set(id, Math.max(lastSeen.get(id), now - 60000));
     void hiddenAt;
     reconnect();
   });

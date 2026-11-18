@@ -918,7 +918,7 @@ function onState(p) {
     peer = { av: new Avatar(p.name, p.color, p.g, p.lk), x: p.x, z: p.z, ry: p.ry, floor: p.floor || 0, name: p.name, color: p.color };
     scene.add(peer.av.root);
     peers.set(p.id, peer);
-    if (fresh) { sysMessage(`${p.name}님이 들어왔어요.`); sendState(true); }
+    if (fresh) { if (Date.now() - (recentlyGone.get(p.name) || 0) > 5 * 60000) sysMessage(`${p.name}님이 들어왔어요.`); sendState(true); }
     updateOnline();
   }
   peer.av.setLook(p.color, p.g, p.lk); peer.color = p.color; // 같으면 아무것도 안 함
@@ -943,6 +943,7 @@ function onState(p) {
   peer.jc = p.jc || 0;
   peer.av.ground = +p.hy || 0;
 }
+const recentlyGone = new Map(); // 이름 → 나간 시각 (잠깐 다녀온 사람은 '들어왔어요'를 또 띄우지 않음)
 function removePeer(id, quiet = false) {
   const peer = peers.get(id);
   if (!peer) return;
@@ -950,6 +951,7 @@ function removePeer(id, quiet = false) {
   peer.av.dispose();
   peers.delete(id);
   if (!quiet) sysMessage(`${peer.name}님이 나갔어요.`);
+  recentlyGone.set(peer.name, Date.now());
   updateOnline();
 }
 function updatePeers(dt) {
@@ -1324,6 +1326,9 @@ let now = 0, idleTime = 10, fpsN = 0, fpsT = 0, slowRuns = 0, prDrops = 0;
 orbitPose(pose);
 camera.position.copy(pose.pos);
 camera.lookAt(pose.look);
+
+// 다른 탭에 가 있어도(화면이 숨어 있어도) 20초마다 '여기 있어요' 소식을 보냄 → 다른 사람 화면에서 나갔다 들어왔다 하지 않게
+setInterval(() => { if (document.hidden && myAvatar && net) sendState(true); }, 20000);
 
 // ---------- 🛷 루돌프 썰매 타기 (1~4명, 건물 한 바퀴 비행) ----------
 // 탄 사람이 생기면 SLEIGH.wait초 뒤 출발 (4명이 차면 3초 뒤). 출발 시각을 모두에게 알려서 각자 같은 경로를 같은 시각으로 그림
