@@ -11,7 +11,7 @@ import { createDuel, SWORD, BOT_NAME } from './duel.js';
 import { createRequests } from './requests.js';
 import { createMoney } from './money.js';
 import { unseenNews, markNewsSeen } from './news.js';
-import { XMAS, createPlazaTree, createSnow, createSleigh, sleighPose, SLEIGH } from './xmas.js';
+import { XMAS, createPlazaTree, createSnow, createSleigh, SLEIGH } from './xmas.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
@@ -1330,16 +1330,30 @@ camera.lookAt(pose.look);
 // 다른 탭에 가 있어도(화면이 숨어 있어도) 20초마다 '여기 있어요' 소식을 보냄 → 다른 사람 화면에서 나갔다 들어왔다 하지 않게
 setInterval(() => { if (document.hidden && myAvatar && net) sendState(true); }, 20000);
 
-// ---------- 🛷 루돌프 썰매 타기 (1~4명, 건물 한 바퀴 비행) ----------
-// 탄 사람이 생기면 SLEIGH.wait초 뒤 출발 (4명이 차면 3초 뒤). 출발 시각을 모두에게 알려서 각자 같은 경로를 같은 시각으로 그림
-const ride = { riders: new Map(), departAt: 0, start: 0, mine: false, flying: false, pose: { pos: new THREE.Vector3(), yaw: 0, pitch: 0 }, prevYaw: 0, roll: 0, camPos: null };
+// ---------- 🛷 루돌프 썰매 타기 (1~4명, 맨 처음 탄 사람이 조종) ----------
+// 탄 사람이 생기면 SLEIGH.wait초 뒤 출발 (4명이 차면 3초 뒤). 출발 시각은 모두에게 알림.
+// 날 때는 처음 탄 사람(조종사)이 ←→ 방향 · ↑↓ 높이 (휴대폰은 조이스틱)로 조종하고, 위치를 0.1초마다 보내면 다른 화면은 그걸 부드럽게 따라 그림.
+// 비행 시간(FREE초)이 끝나면 자동으로 돌아와 제자리에 내려앉음.
+const FLY = { speed: 16, turn: 1.5, climb: 7, free: 45, maxT: 110, minY: 3, maxY: 45, range: 52 }; // range: 회사에서 이만큼 넘게 가면 스스로 돌아옴 (주변 빌딩에 부딪히지 않게)
+const ride = { riders: new Map(), departAt: 0, start: 0, mine: false, flying: false, captain: null, sim: null, net: null, netAt: 0, sentAt: 0, roll: 0, camPos: null, camT: 0 };
+const _pose = { x: SLEIGH.x, y: 0, z: SLEIGH.z, yaw: 0, pitch: 0, roll: 0 };
 function riderList() { return [...ride.riders.entries()].sort((a, b) => a[1].ts - b[1].ts || (a[0] < b[0] ? -1 : 1)); }
+const iAmCaptain = () => ride.flying && ride.sim && ride.captain === me.id;
 function rideText() {
   const n = ride.riders.size, left = ride.departAt ? Math.max(0, Math.ceil((ride.departAt - Date.now()) / 1000)) : 0;
-  if (ride.flying) return '🛷 날아가는 중! 꽉 잡으세요 ✨';
-  if (ride.mine) return `🛷 출발까지 ${left}초 · ${n}/${SLEIGH.max}명 탑승 · ${isTouch ? '내리기 (누르기)' : '내리기: E'}`;
+  if (ride.flying) {
+    if (iAmCaptain()) {
+      const sim = ride.sim, rest = Math.max(0, Math.ceil(FLY.free - sim.t));
+      if (sim.phase === 'takeoff') return '🛷 날아오르는 중… 꽉 잡으세요!';
+      if (sim.phase === 'free') return isTouch ? `🛷 조이스틱으로 조종 (좌우 방향 · 위아래 높이) · 남은 ${rest}초` : `🛷 조종 중! ←→ 방향 · ↑↓ 높이 · 남은 ${rest}초`;
+      return '🛷 착륙하러 돌아가는 중…';
+    }
+    const cap = ride.riders.get(ride.captain);
+    return `🛷 ${cap ? `${cap.name}님이 조종 중` : '날아가는 중'}! 꽉 잡으세요 ✨`;
+  }
+  if (ride.mine) return `🛷 출발까지 ${left}초 · ${n}/${SLEIGH.max}명 · ${riderList()[0]?.[0] === me.id ? '내가 조종사!' : `${riderList()[0]?.[1].name}님이 조종`} · ${isTouch ? '내리기 (누르기)' : '내리기: E'}`;
   if (n >= SLEIGH.max) return '🛷 썰매가 꽉 찼어요 (4명)';
-  return `${isTouch ? '' : 'E  '}🛷 루돌프 썰매 타기 (${n}/${SLEIGH.max}명${n ? ` · ${left}초 뒤 출발` : ''})${isTouch ? ' (누르기)' : ''}`;
+  return `${isTouch ? '' : 'E  '}🛷 루돌프 썰매 타기 (${n}/${SLEIGH.max}명${n ? ` · ${left}초 뒤 출발` : ' · 처음 탄 사람이 조종해요'})${isTouch ? ' (누르기)' : ''}`;
 }
 function rideJoin() {
   if (ride.flying || ride.riders.has(me.id)) return;
@@ -1356,11 +1370,20 @@ function rideLeave() {
   net?.sendEvent(e); rideEvent(e);
 }
 function rideEvent(e) {
-  if (!XMAS || !e || e.t !== 'sleigh' || ride.flying) return;
+  if (!XMAS || !e || e.t !== 'sleigh') return;
+  if (e.k === 'pose') { // 조종사가 보낸 위치
+    if (ride.captain === me.id && ride.sim) return;
+    ride.net = e; ride.netAt = performance.now();
+    if (!ride.flying) { ride.flying = true; ride.start = Date.now(); ride.captain = e.id; if (!ride.netInit) Object.assign(_pose, e); }
+    ride.netInit = true;
+    return;
+  }
+  if (e.k === 'land') { if (ride.flying) rideLand(); return; }
+  if (ride.flying) return;
   if (e.k === 'join' && ride.riders.size < SLEIGH.max && !ride.riders.has(e.id)) {
     ride.riders.set(e.id, { ts: e.ts, name: e.name });
     ride.departAt = ride.departAt ? Math.min(ride.departAt, e.at) : e.at;
-    if (e.id === me.id) { ride.mine = true; clearTarget(); sysMessage(`🛷 썰매에 탔어요! ${Math.ceil((ride.departAt - Date.now()) / 1000)}초 뒤 출발해요. 같이 탈 사람은 1층 동쪽 문 앞으로!`); playBeep(880, 0.12); }
+    if (e.id === me.id) { ride.mine = true; clearTarget(); sysMessage(`🛷 썰매에 탔어요! ${Math.ceil((ride.departAt - Date.now()) / 1000)}초 뒤 출발해요. ${riderList()[0][0] === me.id ? '처음 탔으니 내가 조종해요 (←→ 방향 · ↑↓ 높이)!' : ''}`); playBeep(880, 0.12); }
     else sysMessage(`🛷 ${e.name}님이 루돌프 썰매에 탔어요! (${ride.riders.size}/${SLEIGH.max}명)`);
   } else if (e.k === 'leave' && ride.riders.has(e.id)) {
     ride.riders.delete(e.id);
@@ -1368,32 +1391,97 @@ function rideEvent(e) {
     if (!ride.riders.size) ride.departAt = 0;
   }
 }
+const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+// 조종사 화면에서 썰매를 움직임
+function simStep(dt) {
+  const sim = ride.sim; sim.t += dt;
+  let turn = 0, climb = 0, speed = FLY.speed;
+  if (sim.phase === 'takeoff') { climb = 0.9; if (sim.y > 6 || sim.t > 2.5) sim.phase = 'free'; }
+  else if (sim.phase === 'free') {
+    if (keys.has('ArrowLeft') || keys.has('KeyA')) turn += 1;
+    if (keys.has('ArrowRight') || keys.has('KeyD')) turn -= 1;
+    if (keys.has('ArrowUp') || keys.has('KeyW')) climb += 1;
+    if (keys.has('ArrowDown') || keys.has('KeyS')) climb -= 1;
+    turn -= joy.x; climb -= joy.y;
+    // 너무 멀리 가면 스스로 건물 쪽으로 돌아옴
+    if (Math.hypot(sim.x, sim.z) > FLY.range) { const want = Math.atan2(sim.z, -sim.x); turn = THREE.MathUtils.clamp(wrapA(want - sim.yaw) * 2, -1, 1); }
+    if (sim.t > FLY.free) sim.phase = 'return';
+  }
+  if (sim.phase === 'return') {
+    // 동쪽 문 앞 길(서쪽에서 들어오는 방향)으로 돌아옴
+    const ax = SLEIGH.x - 18, az = SLEIGH.z, want = Math.atan2(-(az - sim.z), ax - sim.x);
+    turn = THREE.MathUtils.clamp(wrapA(want - sim.yaw) * 2, -1, 1);
+    climb = THREE.MathUtils.clamp((5 - sim.y) * 0.4, -1, 1);
+    if (Math.hypot(ax - sim.x, az - sim.z) < 7 || sim.t > FLY.maxT - 8) sim.phase = 'final';
+  }
+  if (sim.phase === 'final') {
+    const dx = SLEIGH.x - sim.x, dz = SLEIGH.z - sim.z, d = Math.hypot(dx, dz);
+    speed = THREE.MathUtils.clamp(d * 1.1, 1.5, 12);
+    const step = Math.min(d, speed * dt);
+    if (d > 0.01) { sim.x += (dx / d) * step; sim.z += (dz / d) * step; }
+    const yawT = d > 2 ? Math.atan2(-dz, dx) : 0;
+    sim.yaw += wrapA(yawT - sim.yaw) * Math.min(1, dt * 3);
+    sim.y += (Math.min(sim.y, d * 0.35) - sim.y) * Math.min(1, dt * 2.5);
+    sim.pitch = -Math.min(0.25, sim.y * 0.05); sim.roll += (0 - sim.roll) * Math.min(1, dt * 4);
+    if (d < 0.08 && sim.y < 0.05) return true; // 내려앉음
+    return false;
+  }
+  sim.yaw += turn * FLY.turn * dt;
+  sim.x += Math.cos(sim.yaw) * speed * dt; sim.z += -Math.sin(sim.yaw) * speed * dt;
+  const vy = climb * FLY.climb;
+  sim.y += vy * dt;
+  // 땅 · 건물에 부딪히지 않게
+  const overBld = Math.abs(sim.x) < HX + 2.5 && Math.abs(sim.z) < HZ + 2.5;
+  const floorY = sim.phase === 'takeoff' ? 0 : overBld ? 21 : FLY.minY;
+  if (sim.y < floorY) sim.y += (floorY - sim.y) * Math.min(1, dt * 6);
+  sim.y = Math.min(FLY.maxY, sim.y);
+  sim.pitch += (Math.atan2(vy, speed) * 0.8 - sim.pitch) * Math.min(1, dt * 4);
+  sim.roll += (-turn * 0.45 - sim.roll) * Math.min(1, dt * 3);
+  return sim.t > FLY.maxT;
+}
 const _seat = new THREE.Vector3();
 function updateRide(dt) {
   const t = Date.now();
-  // 접속이 끊긴 사람은 빼기
-  for (const id of ride.riders.keys()) if (id !== me.id && !peers.has(id) && !ride.flying) ride.riders.delete(id);
+  for (const id of ride.riders.keys()) if (id !== me.id && !peers.has(id) && !ride.flying) ride.riders.delete(id); // 접속이 끊긴 사람은 빼기
   if (!ride.riders.size && !ride.flying) ride.departAt = 0;
+  // 출발
   if (!ride.flying && ride.departAt && ride.riders.size && t >= ride.departAt) {
-    ride.flying = true; ride.start = ride.departAt;
-    if (ride.mine) { bld.setFloor(0, true); sysMessage('🛷 출발! 회사 한 바퀴 날아 볼게요 🎄'); playBeep(990, 0.2); }
+    ride.flying = true; ride.start = ride.departAt; ride.captain = riderList()[0][0]; ride.netAt = performance.now();
+    if (ride.captain === me.id) ride.sim = { x: SLEIGH.x, y: 0, z: SLEIGH.z, yaw: 0, pitch: 0, roll: 0, t: 0, phase: 'takeoff' };
+    if (ride.mine) { bld.setFloor(0, true); sysMessage(ride.captain === me.id ? '🛷 출발! 내가 조종해요 — ←→ 방향 · ↑↓ 높이 (휴대폰은 조이스틱)' : '🛷 출발! 꽉 잡으세요 🎄'); playBeep(990, 0.2); }
   }
   let speed = 0;
   if (ride.flying) {
-    const sec = (t - ride.start) / 1000;
-    const prev = ride.pose.pos.clone();
-    sleighPose(sec, ride.pose);
-    speed = dt > 0 ? prev.distanceTo(ride.pose.pos) / dt : 0;
-    let dy = ride.pose.yaw - ride.prevYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); ride.prevYaw = ride.pose.yaw;
-    ride.roll += ((dt > 0 ? THREE.MathUtils.clamp(-dy / dt * 0.35, -0.5, 0.5) : 0) - ride.roll) * Math.min(1, dt * 3);
-    sleigh.root.position.copy(ride.pose.pos);
-    sleigh.root.rotation.set(ride.roll, ride.pose.yaw, ride.pose.pitch, 'YZX');
-    if (sec >= SLEIGH.dur) rideLand();
+    // 조종사가 사라지면(위치 소식이 3초 넘게 없으면) 탄 사람 중 하나가 이어받아 착륙시킴
+    if (!ride.sim && performance.now() - ride.netAt > 3000) {
+      const next = riderList().find(([id]) => id === me.id || peers.has(id));
+      if (next && next[0] === me.id) { ride.captain = me.id; ride.sim = { ..._pose, t: FLY.free, phase: 'return' }; }
+      else if (!next) { rideLand(); return; }
+    }
+    if (ride.sim) {
+      // 화면이 버벅여도 같은 빠르기로 날도록 실제 지난 시간으로 계산 (잘게 나눠서)
+      const tn = performance.now(); let real = Math.min(0.3, (tn - (ride.simT || tn)) / 1000); ride.simT = tn;
+      let done = false;
+      while (real > 1e-4 && !done) { const st = Math.min(0.04, real); real -= st; done = simStep(st); }
+      Object.assign(_pose, ride.sim);
+      if (performance.now() - ride.sentAt > 120 || done) { ride.sentAt = performance.now(); net?.sendEvent({ t: 'sleigh', k: 'pose', id: me.id, x: +_pose.x.toFixed(2), y: +_pose.y.toFixed(2), z: +_pose.z.toFixed(2), yaw: +_pose.yaw.toFixed(3), pitch: +_pose.pitch.toFixed(3), roll: +_pose.roll.toFixed(3) }); }
+      if (done) { net?.sendEvent({ t: 'sleigh', k: 'land' }); rideLand(); return; }
+      speed = FLY.speed;
+    } else if (ride.net) { // 받은 위치를 부드럽게 따라감
+      const tn = performance.now(), real = Math.min(0.3, (tn - (ride.followT || tn)) / 1000); ride.followT = tn;
+      const n = ride.net, k = Math.min(1, real * 8), ox = _pose.x, oz = _pose.z;
+      _pose.x += (n.x - _pose.x) * k; _pose.y += (n.y - _pose.y) * k; _pose.z += (n.z - _pose.z) * k;
+      _pose.yaw += wrapA(n.yaw - _pose.yaw) * k; _pose.pitch += (n.pitch - _pose.pitch) * k; _pose.roll += (n.roll - _pose.roll) * k;
+      speed = real > 0 ? Math.hypot(_pose.x - ox, _pose.z - oz) / real : 0;
+    }
+    sleigh.root.position.set(_pose.x, _pose.y, _pose.z);
+    sleigh.root.rotation.set(_pose.roll, _pose.yaw, _pose.pitch, 'YZX');
   } else {
-    sleigh.root.position.set(SLEIGH.x, 0, SLEIGH.z); sleigh.root.rotation.set(0, 0, 0); ride.roll = 0; ride.prevYaw = 0;
+    Object.assign(_pose, { x: SLEIGH.x, y: 0, z: SLEIGH.z, yaw: 0, pitch: 0, roll: 0 });
+    sleigh.root.position.set(SLEIGH.x, 0, SLEIGH.z); sleigh.root.rotation.set(0, 0, 0);
   }
   sleigh.animate(dt, speed);
-  // 탄 사람들을 자리에 앉힘 (내 화면에서 계산 — 다른 사람도 같은 자리에 보임)
+  // 탄 사람들을 자리에 앉힘
   sleigh.root.updateMatrixWorld(true);
   riderList().forEach(([id], i) => {
     const av = id === me.id ? myAvatar : peers.get(id)?.av; if (!av) return;
@@ -1409,7 +1497,8 @@ function updateRide(dt) {
 function rideLand() {
   const wasMine = ride.mine, myIdx = riderList().findIndex(([id]) => id === me.id);
   for (const [id] of ride.riders) { const av = id === me.id ? myAvatar : peers.get(id)?.av; if (av) { av.root.rotation.set(0, av.root.rotation.y, 0); av.setSit(false); } }
-  ride.riders.clear(); ride.flying = false; ride.mine = false; ride.departAt = 0; ride.start = 0; ride.camPos = null; ride.camT = 0;
+  Object.assign(ride, { flying: false, mine: false, departAt: 0, start: 0, captain: null, sim: null, simT: 0, net: null, netInit: false, camPos: null, camT: 0 });
+  ride.riders.clear();
   if (wasMine) {
     player.floor = 0; player.x = SLEIGH.x - 1.3 + Math.max(0, myIdx) * 0.75; player.z = SLEIGH.z + 1.35; player.ry = Math.PI; myAvatar.root.rotation.set(0, Math.PI, 0);
     bld.setFloor(0); player.zone = zoneAt(0, player.x, player.z); showFloorHud(); sendState(true);
@@ -1419,14 +1508,14 @@ function rideLand() {
 }
 // 비행 중에는 썰매 뒤를 따라가는 카메라
 const _cp = new THREE.Vector3(), _cl = new THREE.Vector3();
-function rideCamera(dt) {
+function rideCamera() {
   if (!ride.mine || !ride.flying || mode !== 'office') return;
-  const p = sleigh.root.position, y = ride.pose.yaw, fx = Math.cos(y), fz = -Math.sin(y);
-  _cp.set(p.x - fx * 7.5 + fz * 2.0, p.y + 3.8, p.z - fz * 7.5 - fx * 2.0);
-  _cl.set(p.x + fx * 3, p.y + 0.9, p.z + fz * 3);
+  const p = sleigh.root.position, y = _pose.yaw, fx = Math.cos(y), fz = -Math.sin(y);
+  _cp.set(p.x - fx * 8 + fz * 1.5, p.y + 3.6, p.z - fz * 8 - fx * 1.5);
+  _cl.set(p.x + fx * 4, p.y + 0.9, p.z + fz * 4);
   const tn = performance.now(), rdt = Math.min(0.5, (tn - (ride.camT || tn)) / 1000); ride.camT = tn; // 화면이 버벅여도 놓치지 않게 실제 시간으로
   if (!ride.camPos) ride.camPos = camera.position.clone();
-  ride.camPos.lerp(_cp, Math.min(1, rdt * 5));
+  ride.camPos.lerp(_cp, Math.min(1, rdt * 6));
   camera.position.copy(ride.camPos); camera.lookAt(_cl);
   if (camera.near !== 0.3) { camera.near = 0.3; camera.updateProjectionMatrix(); }
   if (myAvatar) myAvatar.root.visible = true;
@@ -1456,7 +1545,7 @@ function frame() {
   updateNpc(dt); updateAdvisor(dt);
   if (XMAS) updateRide(dt);
   updateCamera(dt);
-  if (XMAS) { rideCamera(dt); snow.update(dt, camera); }
+  if (XMAS) { rideCamera(); snow.update(dt, camera); }
   if (!$('intro').hidden && pv.av) { pv.av.root.rotation.y += dt * 0.6; pv.av.animate(dt, 0, now); pv.renderer.render(pv.scene, pv.cam); }
   sky.position.copy(camera.position);
   labelCam.copy(camera); labelCam.layers.set(1);
@@ -1482,5 +1571,5 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { ride, rideJoin, sleigh, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+window.__work = { ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;
