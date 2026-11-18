@@ -137,9 +137,11 @@ export function createMoney(api) {
         <dt>📈 주식 평가액</dt><dd>${won(sv)} ${sv ? `<small class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : ''}${won(pl)}</small>` : ''}</dd>
         <dt>💎 총 자산</dt><dd><b>${won(w.cash + w.savings + sv)}</b></dd>
       </dl>
+      <button type="button" class="link" id="walletItems" style="display:block;margin:4px 0 10px">👜 내 아이템 보기 · 착용하기</button>
       <p class="sub">시급 ${won(WAGE)}(2026년 최저임금) · 사옥에 접속해 있는 동안 세요(다른 탭에 가 있어도 OK) · 매달 ${PAYDAY}일에 월급이 지갑으로 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
   }
   function openWallet() { if (!w) return; renderWallet(); api.openModal('walletModal'); }
+  document.addEventListener('click', (e) => { if (e.target?.id === 'walletItems') api.openItems?.(); });
 
   // ---------- 투자 ----------
   function spark(st) {
@@ -220,5 +222,13 @@ export function createMoney(api) {
   }
   drawBoard();
 
-  return { load, greeting, openWallet, openInvest, save, get ready() { return !!w; }, get mode() { return useLocal ? 'local' : 'server'; } };
+  // 👜 상점 아이템 (따로 표를 만들지 않으려고 stocks 안에 __items · __wear로 보관)
+  const items = () => (w?.stocks?.__items || []);
+  const wear = () => (w?.stocks?.__wear || {});
+  function buy(id, price) {
+    if (!w || w.cash < price || items().includes(id)) return false;
+    w.cash -= price; w.stocks.__items = [...items(), id]; save(); chip(); return true;
+  }
+  function setWear(slot, id) { if (!w) return; const v = { ...wear() }; if (id) v[slot] = id; else delete v[slot]; w.stocks.__wear = v; save(); }
+  return { items, wear, buy, setWear, cash: () => (w ? w.cash : 0), load, greeting, openWallet, openInvest, save, get ready() { return !!w; }, get mode() { return useLocal ? 'local' : 'server'; } };
 }

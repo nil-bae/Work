@@ -207,7 +207,9 @@ export function createGarden(uniforms) {
     [26, -5], [27, 12], [25, 24], [14, 24.5], [8, 23.5],
     [-16, 22], [16, 22], [-15, -6], [15, -6],
   ];
+  const shopArea = (x, z) => x > 15.8 && x < 27.2 && z > -9.5 && z < 1.5; // 👜 부티크 자리
   treeSpots.forEach(([x, z], i) => {
+    if (shopArea(x, z)) return;
     const s = 0.85 + rand() * 0.4;
     const leaf = i % 5 === 2 ? blossom : (i % 2 ? canopyA : canopyB);
     k.cyl(0.18 * s, 2.4 * s, x, 0, z, trunk, 7, 0.12 * s);
@@ -220,6 +222,7 @@ export function createGarden(uniforms) {
   for (let i = 0; i < 26; i++) {
     const x = (rand() < 0.5 ? -1 : 1) * (13 + rand() * 17), z = -28 + rand() * 56;
     if (Math.abs(z - STREAM.z) < 2.4) continue;
+    if (shopArea(x, z)) continue;
     if (Math.abs(z - fz) < 3 || Math.abs(z - 6) < 3 || Math.abs(z + 16) < 4.5) continue;
     k.ball(0.5 + rand() * 0.4, x, 0.35, z, shrub, 0.75);
   }

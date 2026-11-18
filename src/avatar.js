@@ -264,6 +264,102 @@ function workTextures() {
   return WORK_TEX;
 }
 
+// ---------- 👜 꾸미기 아이템 (상점에서 사서 착용) ----------
+// 몸(body) 기준 좌표: 머리 가운데 (0, 0.78, 0), 반지름 약 0.25, 얼굴은 +z 쪽
+const AM = {
+  black: new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 0.35, metalness: 0.3 }),
+  gold: new THREE.MeshStandardMaterial({ color: 0xe3b43f, roughness: 0.25, metalness: 0.85, emissive: 0x3a2600 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0x9fd4ff, roughness: 0.05, transparent: true, opacity: 0.35 }),
+  shade: new THREE.MeshStandardMaterial({ color: 0x15151c, roughness: 0.15, metalness: 0.4 }),
+  pink: new THREE.MeshStandardMaterial({ color: 0xff8fb8, roughness: 0.5 }),
+  pinkIn: new THREE.MeshStandardMaterial({ color: 0xffc7da, roughness: 0.6 }),
+  red: new THREE.MeshStandardMaterial({ color: 0xd11f2d, roughness: 0.5 }),
+  white: new THREE.MeshStandardMaterial({ color: 0xf6f4ef, roughness: 0.7 }),
+  ruby: new THREE.MeshStandardMaterial({ color: 0xe0103a, roughness: 0.1, metalness: 0.3, emissive: 0x400010 }),
+  sapphire: new THREE.MeshStandardMaterial({ color: 0x2a5cff, roughness: 0.1, metalness: 0.3, emissive: 0x081a50 }),
+  diamond: new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.8, 2.2) }),
+  halo: new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.9, 0.9) }),
+  feather: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, side: THREE.DoubleSide }),
+  bfly: new THREE.MeshStandardMaterial({ color: 0x8fd3ff, roughness: 0.4, transparent: true, opacity: 0.85, side: THREE.DoubleSide, emissive: 0x1a3a66 }),
+  bfly2: new THREE.MeshStandardMaterial({ color: 0xff9ad5, roughness: 0.4, transparent: true, opacity: 0.85, side: THREE.DoubleSide, emissive: 0x4a1a3a }),
+  bat: new THREE.MeshStandardMaterial({ color: 0x3a1f4a, roughness: 0.6, side: THREE.DoubleSide }),
+};
+const flower = [0xff6b8b, 0xffd23f, 0xffffff, 0xb784ff, 0xff9a3d].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 }));
+const H0 = 0.78;
+function wingShape(w, h, round) { // 날개 한쪽 (x+ 쪽으로 펼침)
+  const sh = new THREE.Shape();
+  sh.moveTo(0, 0);
+  if (round) { sh.bezierCurveTo(w * 0.3, h * 0.9, w * 1.1, h * 1.1, w, h * 0.35); sh.bezierCurveTo(w * 1.05, -h * 0.4, w * 0.4, -h * 0.6, 0, -0.02); }
+  else { sh.bezierCurveTo(w * 0.2, h * 0.7, w * 0.8, h, w, h * 0.55); for (let i = 0; i < 4; i++) sh.quadraticCurveTo(w * (0.9 - i * 0.22), h * (0.3 - i * 0.12), w * (0.78 - i * 0.22), h * (0.18 - i * 0.14)); sh.lineTo(0, -0.02); }
+  return new THREE.ShapeGeometry(sh, 16);
+}
+export const ACC_SLOTS = { face: '얼굴', head: '머리', top: '머리 위', back: '등' };
+export function makeAcc(id) {
+  const g = new THREE.Group(); g.userData.id = id;
+  const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.scale.set(sx, sy, sz); g.add(m); return m; };
+  const band = (mat) => add(new THREE.TorusGeometry(0.262, 0.014, 6, 32, Math.PI), mat, 0, H0 + 0.02, 0.02, 0, Math.PI / 2, 0, 1, 1.08, 1);
+  switch (id) {
+    case 'glasses': // 동그란 금테 안경
+      for (const e of [-1, 1]) { add(new THREE.TorusGeometry(0.052, 0.008, 8, 24), AM.gold, e * 0.09, H0, 0.236); add(new THREE.CircleGeometry(0.05, 20), AM.glass, e * 0.09, H0, 0.237); add(new THREE.CylinderGeometry(0.005, 0.005, 0.2, 6), AM.gold, e * 0.215, H0 + 0.01, 0.13, Math.PI / 2, 0, 0); }
+      add(new THREE.TorusGeometry(0.03, 0.006, 6, 12, Math.PI), AM.gold, 0, H0 + 0.005, 0.238);
+      break;
+    case 'sunglasses': // 까만 선글라스
+      for (const e of [-1, 1]) { add(new THREE.SphereGeometry(0.062, 16, 10), AM.shade, e * 0.09, H0 + 0.005, 0.226, 0, 0, 0, 1.15, 0.8, 0.28); add(new THREE.CylinderGeometry(0.006, 0.006, 0.2, 6), AM.black, e * 0.215, H0 + 0.02, 0.13, Math.PI / 2, 0, 0); }
+      add(new THREE.BoxGeometry(0.06, 0.012, 0.012), AM.black, 0, H0 + 0.035, 0.245);
+      break;
+    case 'ribbon': // 큰 리본 머리띠
+      band(AM.pink);
+      for (const e of [-1, 1]) add(new THREE.ConeGeometry(0.075, 0.13, 4), AM.pink, 0.12 + e * 0.07, H0 + 0.25, 0.04, 0, 0, e * Math.PI / 2);
+      add(new THREE.SphereGeometry(0.03, 10, 8), AM.pink, 0.12, H0 + 0.25, 0.05);
+      break;
+    case 'catears': // 고양이 귀 머리띠
+      band(AM.black);
+      for (const e of [-1, 1]) { add(new THREE.ConeGeometry(0.075, 0.15, 4), AM.black, e * 0.15, H0 + 0.26, 0.0, 0, Math.PI / 4, e * -0.35); add(new THREE.ConeGeometry(0.045, 0.1, 4), AM.pinkIn, e * 0.15, H0 + 0.25, 0.03, 0, Math.PI / 4, e * -0.35); }
+      break;
+    case 'santa': { // 산타 모자
+      const c = add(new THREE.ConeGeometry(0.2, 0.36, 18), AM.red, 0.03, H0 + 0.36, -0.02, -0.35, 0, -0.25);
+      void c; add(new THREE.TorusGeometry(0.235, 0.05, 8, 24), AM.white, 0, H0 + 0.19, 0, Math.PI / 2 - 0.3, 0, 0);
+      add(new THREE.SphereGeometry(0.06, 10, 8), AM.white, 0.11, H0 + 0.52, -0.14);
+      break;
+    }
+    case 'flower': // 꽃 화관
+      for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; add(new THREE.IcosahedronGeometry(0.045, 0), flower[i % 5], Math.sin(a) * 0.25, H0 + 0.12 + Math.cos(a) * 0.04, Math.cos(a) * 0.24); }
+      for (let i = 0; i < 14; i++) { const a = ((i + 0.5) / 14) * Math.PI * 2; add(new THREE.IcosahedronGeometry(0.03, 0), new THREE.MeshStandardMaterial({ color: 0x4f9b47 }), Math.sin(a) * 0.255, H0 + 0.11 + Math.cos(a) * 0.04, Math.cos(a) * 0.245); }
+      break;
+    case 'crown': { // 금 왕관
+      add(new THREE.CylinderGeometry(0.15, 0.16, 0.09, 24, 1, true), AM.gold, 0, H0 + 0.27, -0.01);
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(new THREE.ConeGeometry(0.03, 0.09, 6), AM.gold, Math.sin(a) * 0.15, H0 + 0.355, Math.cos(a) * 0.15 - 0.01); add(new THREE.SphereGeometry(0.014, 8, 6), AM.gold, Math.sin(a) * 0.15, H0 + 0.405, Math.cos(a) * 0.15 - 0.01); }
+      for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; add(new THREE.SphereGeometry(0.022, 10, 8), i % 2 ? AM.sapphire : AM.ruby, Math.sin(a) * 0.158, H0 + 0.27, Math.cos(a) * 0.158 - 0.01); }
+      break;
+    }
+    case 'diacrown': { // 다이아몬드 티아라
+      add(new THREE.TorusGeometry(0.2, 0.014, 8, 32, Math.PI), AM.gold, 0, H0 + 0.1, 0.04, -0.2, 0, 0);
+      for (let i = 0; i < 9; i++) { const t = (i / 8) * Math.PI, hgt = 0.06 + 0.07 * Math.sin(t); add(new THREE.OctahedronGeometry(0.025 + 0.012 * Math.sin(t), 0), AM.diamond, Math.cos(t) * 0.2, H0 + 0.11 + Math.sin(t) * 0.2 * 0.2 + hgt, 0.04 + Math.sin(t) * 0.06); }
+      add(new THREE.OctahedronGeometry(0.045, 0), AM.sapphire, 0, H0 + 0.36, 0.1, 0, 0, 0, 0.8, 1.2, 0.8);
+      break;
+    }
+    case 'halo': // 천사 고리 (머리 위에 둥실)
+      add(new THREE.TorusGeometry(0.15, 0.018, 8, 32), AM.halo, 0, H0 + 0.42, -0.02, Math.PI / 2 - 0.15, 0, 0);
+      g.userData.bob = true;
+      break;
+    case 'wings': case 'butterfly': case 'bat': { // 날개 (등)
+      const round = id !== 'bat', mat = id === 'wings' ? AM.feather : id === 'bat' ? AM.bat : AM.bfly;
+      const W = id === 'butterfly' ? 0.3 : 0.38, Hh = id === 'butterfly' ? 0.34 : 0.3;
+      const wl = [];
+      for (const e of [-1, 1]) {
+        const pivot = new THREE.Group(); pivot.position.set(e * 0.05, 0.47, -0.17); g.add(pivot);
+        const m = new THREE.Mesh(wingShape(W, Hh, round), mat); m.scale.x = e; pivot.add(m);
+        if (id === 'butterfly') { const m2 = new THREE.Mesh(wingShape(W * 0.7, Hh * 0.8, true), AM.bfly2); m2.scale.set(e, -1, 1); m2.position.y = -0.02; pivot.add(m2); }
+        if (id === 'wings') for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(wingShape(W * (0.8 - i * 0.18), Hh * 0.5, true), AM.feather); f.scale.set(e, -0.7, 1); f.position.set(0, -0.04 - i * 0.05, 0.005 * (i + 1)); pivot.add(f); }
+        wl.push(pivot);
+      }
+      g.userData.wings = wl;
+      break;
+    }
+  }
+  return g;
+}
+
 export class Avatar {
   constructor(name, color, gender = 'm', look = '') {
     this.root = new THREE.Group();
@@ -317,6 +413,8 @@ export class Avatar {
     this.armR.add(this.sword);
     this.body.scale.setScalar(SCALE);
     this.body.add(this.torso, this.legL, this.legR, this.armL, this.armR);
+    this.accGroup = new THREE.Group(); this.body.add(this.accGroup);
+    for (const id of this.acc || []) this.accGroup.add(makeAcc(id));
   }
   setSword(on) { this.swordOn = on; if (this.sword) this.sword.visible = on; }
   // 결투에서 지면 뒤로 쓰러짐
@@ -339,6 +437,16 @@ export class Avatar {
     this.dispose(true);
     this.color = color; this.gender = g; this.look = lk;
     this.build();
+  }
+  // 착용 아이템 (아이디 목록 또는 'a,b' 글자)
+  setAcc(list) {
+    const ids = (Array.isArray(list) ? list : String(list || '').split(',')).filter(Boolean).slice(0, 4);
+    if (ids.join(',') === (this.acc || []).join(',')) return;
+    this.acc = ids;
+    if (!this.accGroup) return;
+    this.accGroup.traverse((o) => o.geometry?.dispose());
+    this.accGroup.clear();
+    for (const id of ids) this.accGroup.add(makeAcc(id));
   }
   setColor(color) { this.setLook(color, this.gender, this.look); }
   setName(name) {
@@ -406,6 +514,13 @@ export class Avatar {
 
   animate(dt, speed, now) {
     this.stepJump(dt);
+    if (this.accGroup?.children.length) { // 날개 파닥 · 고리 둥실
+      this.accT = (this.accT || 0) + dt;
+      for (const a of this.accGroup.children) {
+        if (a.userData.wings) a.userData.wings.forEach((w, i) => (w.rotation.y = (i ? -1 : 1) * (0.35 + Math.sin(this.accT * (a.userData.id === 'butterfly' ? 7 : 3.5)) * 0.25)));
+        if (a.userData.bob) a.position.y = Math.sin(this.accT * 2) * 0.015;
+      }
+    }
     if (this.sitting) {
       // 앉은 자세: 다리는 앞으로, 손은 무릎 위
       this.legL.rotation.x = this.legR.rotation.x = -1.45;

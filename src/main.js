@@ -11,7 +11,8 @@ import { createDuel, SWORD, BOT_NAME } from './duel.js';
 import { createRequests } from './requests.js';
 import { createMoney } from './money.js';
 import { unseenNews, markNewsSeen } from './news.js';
-import { XMAS, createPlazaTree, createSnow, createSleigh, SLEIGH } from './xmas.js';
+import { XMAS, createPlazaTree, createSleigh, SLEIGH } from './xmas.js';
+import { createShop, createShopUI, SHOP } from './shop.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
@@ -96,10 +97,10 @@ function updateNpc(dt) {
 scene.add(garden.group);
 bld.floors[0].colliders.push(...garden.colliders);
 // 🎄 크리스마스: 광장 트리 · 내리는 눈 · 루돌프 썰매
-const snow = XMAS ? createSnow() : null;
+const snow = null; // 눈 내리기는 느려질 수 있어서 끔 (xmas.js의 createSnow)
 const sleigh = XMAS ? createSleigh() : null;
 if (XMAS) {
-  scene.add(createPlazaTree(garden), snow.points, sleigh.root);
+  scene.add(createPlazaTree(garden), sleigh.root);
   sleigh.root.position.set(SLEIGH.x, 0, SLEIGH.z);
   bld.floors[0].colliders.push({ x1: SLEIGH.x - 1.55, z1: SLEIGH.z - 0.68, x2: SLEIGH.x + 4.0, z2: SLEIGH.z + 0.68, tall: false, top: 1, noStand: true });
 }
@@ -138,7 +139,7 @@ document.title = CONFIG.companyName;
 $('brandName').textContent = CONFIG.companyName;
 $('brandTagline').textContent = CONFIG.companyTagline;
 
-const me = { id: makeId(), name: '', color: AVATAR_COLORS[0], gender: 'm', look: '', jt: 0, dev: '' };
+const me = { id: makeId(), name: '', color: AVATAR_COLORS[0], gender: 'm', look: '', acc: [], jt: 0, dev: '' };
 // 이 기기 고유 번호 (같은 기기에서 다시 들어온 것인지 알아보려고)
 try { me.dev = localStorage.getItem('work-dev') || makeId(); localStorage.setItem('work-dev', me.dev); } catch { me.dev = makeId(); }
 const player = { floor: SPAWN.floor, x: SPAWN.x, z: SPAWN.z, ry: SPAWN.yaw + Math.PI, speed: 0, zone: 'f1' };
@@ -210,9 +211,16 @@ function showToast(text, onClick) {
   playBeep(740, 0.12);
 }
 // 💰 월급 · 지갑 · 💹 투자
-const money = createMoney({ $, me, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t, () => money.openWallet()),
+const money = createMoney({ $, me, openItems: () => shopUI.open('mine'), openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t, () => money.openWallet()),
   atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), get board() { return bld.investBoard; } });
 $('workChip').onclick = () => money.openWallet();
+// 👜 WORK BOUTIQUE (1층 정원 동쪽): 아이템 사서 착용
+const shop = createShop(bld.floors[0].colliders);
+scene.add(shop.group);
+const atShop = () => mode === 'office' && player.floor === 0 && shop.inside(player.x, player.z);
+const shopUI = createShopUI({ $, money, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => playBeep(880, 0.15), atShop, changed: () => applyWear() });
+function applyWear() { me.acc = Object.values(money.wear()); myAvatar?.setAcc(me.acc); sendState(true); }
+let clerkGreetAt = -99;
 // 3층 투자 상담원 (NPC)
 const advisor = new Avatar('💹 투자 상담원', '#2d3b55', 'f', '21100');
 advisor.root.position.set(INVEST.x, FLOORS[INVEST.floor].y, INVEST.z);
@@ -377,7 +385,7 @@ function saveProfile() {
   myAvatar.setLook(me.color, me.gender, me.look);
   if (renamed) myAvatar.setName(lvName(me.name, duel.level, duel.loser));
   if (renamed) duel.load(me.name);
-  if (renamed) { money.save(); money.load(me.name); }
+  if (renamed) { money.save(); money.load(me.name).then(applyWear); }
   if (renamed) reqs.refresh();
   closeProfile();
   sysMessage('캐릭터를 바꿨어요.');
@@ -409,7 +417,7 @@ function enter() {
   myAvatar = new Avatar(me.name, me.color, me.gender, me.look);
   if (duel.level > 1 || duel.loser) myAvatar.setName(lvName(me.name, duel.level, duel.loser));
   duel.load(me.name); // 결투 레벨 · 칭호 (Supabase)
-  money.load(me.name).then((notes) => { // 입구에 도착하면(날아 들어오는 장면이 끝나면) 오늘의 일급 알림
+  money.load(me.name).then((notes) => { applyWear(); // 입구에 도착하면(날아 들어오는 장면이 끝나면) 오늘의 일급 알림
     const t = setInterval(() => { if (mode !== 'office') return; clearInterval(t); showNews(); setTimeout(() => { notes.forEach((n) => toast(n, () => money.openWallet())); toast(money.greeting(), () => money.openWallet()); }, 300); }, 200);
   });
   reqs.refresh().then(() => { if (reqs.pending) toast(`📋 아직 끝나지 않은 업무 요청이 ${reqs.pending}개 있어요. (위쪽 📋 업무)`); });
@@ -631,6 +639,7 @@ function updatePlayer(dt) {
   else if (what && what.seat && what.seat.desk) { pr.textContent = isTouch ? '💻 일하기 (누르기)' : 'E  💻 일하기'; pr.hidden = false; }
   else if (what && what.seat) { pr.textContent = isTouch ? '앉기 (누르기)' : 'E  앉기'; pr.hidden = false; }
   else if (what === 'host') { pr.textContent = isTouch ? `⚔️ 정식 결투 신청 (누르기)` : `E  ⚔️ 정식 결투 신청`; pr.hidden = false; }
+  else if (what === 'shop') { pr.textContent = isTouch ? '👜 부티크 쇼핑하기 (누르기)' : 'E  👜 부티크 쇼핑하기'; pr.hidden = false; }
   else if (what === 'invest') { pr.textContent = isTouch ? '💹 투자 상담 받기 (누르기)' : 'E  💹 투자 상담 받기'; pr.hidden = false; }
   else if (what === 'npc') { pr.textContent = isTouch ? '💬 비서에게 말 걸기 (누르기)' : 'E  💬 비서에게 말 걸기'; pr.hidden = false; }
   else if (what === 'notice') { pr.textContent = isTouch ? '공지판 보기 (누르기)' : 'E  공지판 보기'; pr.hidden = false; }
@@ -648,6 +657,7 @@ function nearWhat() {
   if (player.floor === 0 && Math.hypot(player.x - (NPC_SPOT.x + 1.4), player.z - NPC_SPOT.z) < 1.3) return 'npc';
   if (player.floor === ARENA.floor && Math.hypot(player.x - HOST.x, player.z - (HOST.z + 0.8)) < 1.2) return 'host';
   if (player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + 1.55), player.z - INVEST.z) < 1.0) return 'invest';
+  if (player.floor === 0 && Math.hypot(player.x - SHOP.counter.x, player.z - SHOP.counter.z) < 1.2) return 'shop';
   if (XMAS && player.floor === 0 && !ride.flying && Math.hypot(player.x - (SLEIGH.x - 0.3), player.z - SLEIGH.z) < 2.0) return 'sleigh';
   if (Math.hypot(player.x - ELEV.x, player.z - ELEV.z) < 1.9) return 'elev';
   if (player.floor === 3) for (const b of BOOTHS) if (Math.hypot(player.x - b.spot.x, player.z - b.spot.z) < 0.85) return { booth: b };
@@ -902,7 +912,7 @@ function sendState(force = false) {
   if (!force && !(movedEnough && t - lastSend > 300) && t - lastSend < 10000) return;
   lastSend = t;
   lastSent = { x: player.x, z: player.z, ry: player.ry };
-  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0 });
+  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0 });
 }
 
 function onState(p) {
@@ -922,6 +932,7 @@ function onState(p) {
     updateOnline();
   }
   peer.av.setLook(p.color, p.g, p.lk); peer.color = p.color; // 같으면 아무것도 안 함
+  peer.av.setAcc(p.ac || '');
   // 받은 위치를 시간과 함께 모아 두고, 조금 늦게(0.45초) 그 사이를 부드럽게 이어 그림
   const tnow = performance.now() / 1000;
   if ((p.floor || 0) !== peer.floor || !peer.buf) { peer.x = p.x; peer.z = p.z; peer.ry = p.ry; peer.buf = []; }
@@ -1080,6 +1091,7 @@ function interact() {
   else if (what && what.seat) sitDown(what.seat);
   else if (what === 'host') duel.openPicker();
   else if (what === 'npc') npcTalk();
+  else if (what === 'shop') { shop.clerk.say('어서 오세요, WORK BOUTIQUE예요 ✨ 천천히 둘러보세요.', now); shopUI.open('buy'); }
   else if (what === 'invest') { advisor.say('네, 어떤 투자를 도와드릴까요? 😊', now); money.openInvest(); }
   else if (what === 'notice') { refreshNotices(); openModal('noticeModal'); }
   else if (what === 'elev') openFloorMenu();
@@ -1543,9 +1555,11 @@ function frame() {
   }
   updatePeers(dt);
   updateNpc(dt); updateAdvisor(dt);
+  shop.update(dt, now, player.x, player.z, mode === 'office' && player.floor === 0);
+  if (mode === 'office' && player.floor === 0 && shop.inside(player.x, player.z) && now - clerkGreetAt > 90) { clerkGreetAt = now; shop.clerk.say('어서 오세요! 오늘 새로 들어온 왕관 보셨어요? 👑', now); }
   if (XMAS) updateRide(dt);
   updateCamera(dt);
-  if (XMAS) { rideCamera(); snow.update(dt, camera); }
+  if (XMAS) rideCamera();
   if (!$('intro').hidden && pv.av) { pv.av.root.rotation.y += dt * 0.6; pv.av.animate(dt, 0, now); pv.renderer.render(pv.scene, pv.cam); }
   sky.position.copy(camera.position);
   labelCam.copy(camera); labelCam.layers.set(1);
@@ -1571,5 +1585,5 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+window.__work = { shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;

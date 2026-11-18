@@ -1283,4 +1283,4 @@ export function createBuilding() {
   };
 }
 
-export { Kit, M as MATERIALS, chair, plant, canvasTex, ICO, BALL };
+export { Kit, M as MATERIALS, chair, plant, canvasTex, signTex, panel, ICO, BALL };

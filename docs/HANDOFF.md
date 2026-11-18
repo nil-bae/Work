@@ -131,3 +131,11 @@ docs/HANDOFF.md 를 먼저 읽고 그대로 이어서 해줘.
 - 숨은 탭도 20초마다 내 상태를 보냄(main.js setInterval). 브라우저가 숨은 탭 타이머를 1분에 한 번으로 늦춰도 되도록, 소식이 2분 30초 없을 때만 나간 것으로 정리(net.js sweep). Supabase presence leave는 바로 지우지 않고 1분쯤 뒤 정리.
 - 창을 X로 닫으면(pagehide) 'leave' 방송을 실시간 연결 + keepalive fetch(/realtime/v1/api/broadcast)로 보내서 다른 사람 화면에서 바로 사라짐.
 - 나갔다가 5분 안에 다시 온 사람은 '들어왔어요'를 또 띄우지 않음(recentlyGone).
+
+## 👜 WORK BOUTIQUE (`src/shop.js`, 아이템 모양은 avatar.js의 `makeAcc`)
+- 1층 정원 동쪽 x 17.5~25.5, z -8~0 (garden.js의 shopArea에는 나무 · 덤불을 두지 않음). 서쪽(회사 쪽) 유리 쇼윈도 + 금빛 문, 안은 대리석 바닥 · 남색 벽 금줄 · 진열대 6개(흉상에 아이템이 돌아감) · 벨벳 소파 · 샹들리에 · 계산대 + 매니저 NPC. 안에 들어가면 지붕을 숨김.
+- 계산대 앞에서 E → 상점 창(상품 / 내 아이템). 사기는 부티크 안에서만, 착용은 어디서든(지갑 → 👜 내 아이템).
+- 부위: face(안경·선글라스) · head(리본·산타·고양이 귀·화관·왕관·티아라) · top(천사 고리) · back(나비·박쥐·천사 날개). 부위마다 하나씩.
+- 가격(시급 10,320원 기준): 3만~8만(소품) · 15만~25만(고리·날개) · 30만(왕관) · 100만(티아라).
+- 저장: wallets.stocks 안의 `__items`(산 것) · `__wear`(착용) — 새 SQL 필요 없음. 다른 사람에게는 상태 `ac`('crown,wings')로 전달 → `Avatar.setAcc`.
+- 눈 내리기는 느려질 수 있어서 껐음(main.js `snow = null`, xmas.js createSnow는 남겨 둠).
