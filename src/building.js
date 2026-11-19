@@ -26,6 +26,8 @@ export const BOOTHS = Array.from({ length: 5 }, (_, i) => {
   const z1 = -6.4 + i * 1.7, z2 = z1 + 1.7, zc = (z1 + z2) / 2;
   return { i, z1, z2, zc, bagX: 9.35, spot: { x: 8.72, z: zc } };
 });
+// 1층 동쪽 옆문 (정원 동쪽 WORK BOUTIQUE로 바로 나감): z 범위
+export const EAST_DOOR = [-2.9, -1.3];
 export const SPAWN = { floor: 0, x: 0, z: 9.4, yaw: 0 }; // 회사 정문 바로 앞(바깥)에서 문을 바라봄
 
 export const ZONES = {
@@ -586,7 +588,19 @@ export function createBuilding() {
   sk.box(HX - 1.15, 4, 0.03, -(HX + 1.15) / 2, 0, HZ, M.glass);
   sk.box(HX - 1.15, 4, 0.03, (HX + 1.15) / 2, 0, HZ, M.glass);
   sk.box(2.3, 1.3, 0.03, 0, 2.7, HZ, M.glass);
-  for (const [w, d, x, z] of [[W, 0.03, 0, -HZ], [0.03, D, HX, 0], [0.03, D, -HX, 0]]) sk.box(w, 16, d, x, 0, z, M.glass);
+  for (const [w, d, x, z] of [[W, 0.03, 0, -HZ], [0.03, D, -HX, 0]]) sk.box(w, 16, d, x, 0, z, M.glass);
+  // 동쪽 유리: 2층부터는 통으로, 1층은 옆문 자리를 비움
+  {
+    const [e0, e1] = EAST_DOOR;
+    sk.box(0.03, 12, D, HX, 4, 0, M.glass);
+    sk.box(0.03, 4, e0 + HZ, HX, 0, (-HZ + e0) / 2, M.glass);
+    sk.box(0.03, 4, HZ - e1, HX, 0, (e1 + HZ) / 2, M.glass);
+    sk.box(0.03, 1.3, e1 - e0, HX, 2.7, (e0 + e1) / 2, M.glass);
+    sk.box(0.14, 2.7, 0.12, HX, 0, e0, M.frame); sk.box(0.14, 2.7, 0.12, HX, 0, e1, M.frame);
+    sk.box(0.14, 0.12, e1 - e0 + 0.12, HX, 2.6, (e0 + e1) / 2, M.frame);
+    sk.box(1.4, 0.1, e1 - e0 + 1.0, HX + 0.7, 2.8, (e0 + e1) / 2, M.slab);                 // 작은 차양
+    sk.box(0.03, 0.03, e1 - e0 + 0.8, HX + 1.38, 2.78, (e0 + e1) / 2, M.lightWarm);
+  }
   const nx = 8, nz = 5;
   for (let i = 0; i <= nx; i++) {
     const x = -HX + (W * i) / nx;
@@ -657,7 +671,10 @@ export function createBuilding() {
     // 1층 유리벽은 걷기를 막음 (입구만 열림)
     col(-HX, HZ - 0.1, -1.1, HZ + 0.1, true); col(1.1, HZ - 0.1, HX, HZ + 0.1, true);
     col(-HX, -HZ - 0.1, HX, -HZ + 0.1, true);
-    col(-HX - 0.1, -HZ, -HX + 0.1, HZ, true); col(HX - 0.1, -HZ, HX + 0.1, HZ, true);
+    col(-HX - 0.1, -HZ, -HX + 0.1, HZ, true);
+    col(HX - 0.1, -HZ, HX + 0.1, EAST_DOOR[0] + 0.05, true); col(HX - 0.1, EAST_DOOR[1] - 0.05, HX + 0.1, HZ, true); // 동쪽 옆문만 열림
+    k.box(1.4, 0.02, 1.4, HX - 0.8, 0.03, (EAST_DOOR[0] + EAST_DOOR[1]) / 2, M.carpetWarm); // 옆문 매트
+    panel(group, signTex('👜 BOUTIQUE  →', '', { w: 512, h: 112, bg: '#0e0e12', fg: '#e8c56a', size: 54 }), 1.3, 0.28, HX - 0.08, 2.95, (EAST_DOOR[0] + EAST_DOOR[1]) / 2, -Math.PI / 2);
     // 로고 벽 (코어 동쪽 면)
     const logo = canvasTex(1024, 384, (ctx, w, h) => {
       // 아이보리 벽에 붙인 하얀 입체 글자 느낌 (배경 투명 + 그림자)

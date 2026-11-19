@@ -50,6 +50,7 @@ export function createShop(colliders) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), SM.marble); floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0.03, cz); group.add(floor);
   k.box(4.2, 0.02, 1.4, x0 - 1.0, 0.02, -4, SM.carpet);
   k.box(5.6, 0.04, 2.2, 14.3, -0.01, -4, M.stoneLight || SM.cream);
+  k.box(2.2, 0.04, 2.0, 11.4, -0.01, -2.6, M.stoneLight || SM.cream); // 회사 동쪽 옆문에서 이어지는 길
   // 벽: 바깥은 크림색 + 금테, 안은 짙은 남색 + 금줄
   const wall = (ax, az, bx, bz) => {
     const len = Math.hypot(bx - ax, bz - az), mx = (ax + bx) / 2, mz = (az + bz) / 2, ry = Math.atan2(bx - ax, bz - az) + Math.PI / 2;
