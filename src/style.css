@@ -347,3 +347,10 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 #shopGrid button.poor { opacity: .55; }
 @media (max-width: 420px) { #shopGrid { grid-template-columns: repeat(2, 1fr); } }
 .shop-cats { margin: 10px 0 0; }
+
+/* 💰 결투 판돈 */
+.bet-big { display: block; margin: 8px 0 2px; font-size: 20px; font-weight: 800; color: var(--gold); }
+#dAskText small, #dCText small { display: block; margin-top: 4px; color: var(--muted); }
+.counter-box { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.counter-box small { display: block; color: var(--muted); margin-bottom: 6px; }
+#dAccept:disabled, #dCAccept:disabled { opacity: .4; }

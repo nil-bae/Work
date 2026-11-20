@@ -43,7 +43,8 @@ export function createDuel(api) {
   // 날짜가 바뀌면 패배자 칭호를 뗌 (바뀌었으면 true)
   const expire = () => { if (stats.loser && stats.loseDay !== today()) { stats.loser = false; stats.loseDay = ''; return true; } return false; };
   const left = () => { if (stats.day !== today()) { stats.day = today(); stats.challenges = 0; save(); } return Math.max(0, DAILY - stats.challenges); };
-  let invite = null, outgoing = null;
+  let invite = null, outgoing = null, betTarget = null, counterIn = null;
+  const won = (n) => `${Math.round(n).toLocaleString('ko-KR')}원`;
 
   const send = (e) => api.net()?.sendEvent(e);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -83,19 +84,58 @@ export function createDuel(api) {
     const p = peers.get(id);
     if (!p) return;
     if (left() <= 0) { api.sys(`오늘은 더 도전할 수 없어요. (하루 ${DAILY}번까지)`); return; }
-    const did = `${me.id}-${Date.now().toString(36)}`;
-    outgoing = { to: id, name: p.name, id: did };
-    send({ t: 'invite', id: did, from: me.id, fromName: me.name, fromLv: stats.level, to: id });
-    api.sys(`⚔️ ${p.name}님에게 정식으로 결투를 신청했어요. 수락을 기다리는 중…`);
-    setTimeout(() => { if (outgoing?.id === did && !st.active) { api.sys(`${outgoing.name}님이 답이 없어요. 결투 신청이 취소됐어요.`); outgoing = null; } }, 25000);
+    // 💰 먼저 얼마를 걸지 정함 (0원이면 돈 없이 명예만)
+    betTarget = { id, name: p.name };
+    $('dBetTitle').textContent = `💰 ${p.name}님과 얼마를 걸까요?`;
+    $('dBetInfo').innerHTML = `내 지갑 <b>${won(api.cash())}</b> · 두 사람이 같은 돈을 걸고 <b>이긴 사람이 다 가져가요</b>. (0원이면 돈 없이 결투)`;
+    $('dBetAmt').value = Math.min(10000, Math.floor(api.cash() / 1000) * 1000);
+    api.openModal('duelBet'); setTimeout(() => $('dBetAmt').focus(), 50);
   }
+  function sendInvite() {
+    const t = betTarget; if (!t) return;
+    const bet = Math.max(0, Math.floor(+$('dBetAmt').value || 0));
+    if (bet > api.cash()) { alert(`지갑에 ${won(api.cash())}밖에 없어요.`); return; }
+    if (!peers.get(t.id)) { api.closeModals(); api.sys(`${t.name}님이 나갔어요.`); return; }
+    api.closeModals(); betTarget = null;
+    const did = `${me.id}-${Date.now().toString(36)}`;
+    outgoing = { to: t.id, name: t.name, id: did, bet };
+    send({ t: 'invite', id: did, from: me.id, fromName: me.name, fromLv: stats.level, to: t.id, bet });
+    api.sys(`⚔️ ${t.name}님에게 ${bet ? `💰 ${won(bet)}을 걸고 ` : ''}정식으로 결투를 신청했어요. 수락을 기다리는 중…`);
+    setTimeout(() => { if (outgoing?.id === did && !outgoing.countered && !st.active) { api.sys(`${outgoing.name}님이 답이 없어요. 결투 신청이 취소됐어요.`); outgoing = null; } }, 25000);
+  }
+  $('dBetGo').onclick = sendInvite;
+  $('dBetAmt').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendInvite(); });
+  document.querySelectorAll('#dBetChips button').forEach((b) => (b.onclick = () => { $('dBetAmt').value = b.dataset.v === 'all' ? Math.floor(api.cash()) : b.dataset.v; }));
   $('dAccept').onclick = () => {
     if (!invite) return;
-    send({ t: 'accept', id: invite.id, from: me.id, to: invite.from });
+    if ((invite.bet || 0) > api.cash()) { alert('지갑에 돈이 모자라요. 아래에서 금액을 바꿔 역제안해 보세요.'); return; }
+    send({ t: 'accept', id: invite.id, from: me.id, to: invite.from, bet: invite.bet || 0 });
     api.closeModals(); api.sys('⚔️ 결투를 수락했어요! 곧 4층 결투장으로 이동해요.');
     invite = null;
   };
   $('dDecline').onclick = () => { if (invite) send({ t: 'decline', id: invite.id, from: me.id, to: invite.from }); invite = null; api.closeModals(); };
+  // 💬 역제안: 받은 사람이 다른 금액으로 다시 제안
+  $('dCounterBtn').onclick = () => {
+    if (!invite) return;
+    const bet = Math.max(0, Math.floor(+$('dCounterAmt').value || 0));
+    if (bet > api.cash()) { alert(`지갑에 ${won(api.cash())}밖에 없어요.`); return; }
+    if (bet === (invite.bet || 0)) { $('dAccept').click(); return; }
+    send({ t: 'counter', id: invite.id, from: me.id, fromName: me.name, to: invite.from, bet });
+    api.closeModals(); api.sys(`💬 ${invite.fromName}님에게 ${won(bet)}으로 역제안했어요. 답을 기다리는 중…`);
+    invite = null;
+  };
+  // 역제안을 받은 신청자: 수락하면 바로 시작
+  $('dCAccept').onclick = () => {
+    const c = counterIn; if (!c || !outgoing || outgoing.id !== c.id) { api.closeModals(); return; }
+    if (c.bet > api.cash()) { alert(`지갑에 ${won(api.cash())}밖에 없어요.`); return; }
+    left(); stats.challenges++; save();
+    const s = { t: 'start', id: c.id, a: me.id, aName: me.name, b: c.from, bName: outgoing.name, bet: c.bet };
+    send(s); onEvent(s); outgoing = null; counterIn = null;
+  };
+  $('dCDecline').onclick = () => {
+    const c = counterIn; if (c) send({ t: 'decline', id: c.id, from: me.id, to: c.from, counter: 1 });
+    counterIn = null; outgoing = null; api.closeModals(); api.sys('역제안을 거절했어요.');
+  };
 
   // ---------- 메시지 ----------
   function onEvent(e) {
@@ -103,19 +143,33 @@ export function createDuel(api) {
     if (e.t === 'invite' && e.to === me.id) {
       if (st.active || invite) { send({ t: 'decline', id: e.id, from: me.id, to: e.from, busy: 1 }); return; }
       invite = e;
-      $('dAskText').innerHTML = `<b>Lv.${e.fromLv || 1} ${esc(e.fromName)}</b>님이 <b>${SWORD}</b>으로 정식 결투를 신청했어요!<br><small>이기면 레벨 +1, 지면 오늘 하루 😵패배자 칭호가 붙어요.</small>`;
+      const bet = e.bet || 0, cash = api.cash(), short = bet > cash;
+      $('dAskText').innerHTML = `<b>Lv.${e.fromLv || 1} ${esc(e.fromName)}</b>님이 <b>${SWORD}</b>으로 정식 결투를 신청했어요!` +
+        (bet ? `<br><span class="bet-big">💰 판돈 각 ${won(bet)}</span><small>이기면 ${won(bet * 2)}을 다 가져가요. 내 지갑 ${won(cash)}${short ? ' — <b style="color:#ff8a8a">돈이 모자라요!</b> 아래에서 역제안해 보세요.' : ''}</small>` : '<br><small>돈은 걸지 않은 결투예요.</small>') +
+        `<small>이기면 레벨 +1, 지면 오늘 하루 😵패배자 칭호가 붙어요.</small>`;
+      $('dAccept').disabled = short;
+      $('dCounterAmt').value = Math.floor(Math.min(bet || 10000, cash) / 1000) * 1000;
+      $('dCounterInfo').textContent = `다른 금액으로 하고 싶으면 (내 지갑 ${won(cash)})`;
       api.openModal('duelAsk'); api.beep(880, 0.15);
       setTimeout(() => { if (invite?.id === e.id) { send({ t: 'decline', id: e.id, from: me.id, to: e.from }); invite = null; api.closeModals(); } }, 20000);
     } else if (e.t === 'decline' && e.to === me.id && outgoing?.id === e.id) {
       api.sys(e.busy ? `${outgoing.name}님은 지금 결투 중이에요.` : `${outgoing.name}님이 결투를 거절했어요. (도전 횟수는 그대로예요)`);
       outgoing = null;
+    } else if (e.t === 'decline' && e.to === me.id && e.counter) {
+      api.sys('상대가 역제안을 거절했어요. 결투가 취소됐어요.');
+    } else if (e.t === 'counter' && e.to === me.id && outgoing?.id === e.id && !st.active) {
+      outgoing.countered = true; counterIn = e;
+      $('dCText').innerHTML = `<b>${esc(e.fromName)}</b>님이 <span class="bet-big">💰 각 ${won(e.bet)}</span>으로 역제안했어요.<small>처음 제안: ${won(outgoing.bet || 0)} · 내 지갑 ${won(api.cash())}</small>`;
+      $('dCAccept').disabled = e.bet > api.cash();
+      api.openModal('duelCounter'); api.beep(880, 0.15);
+      setTimeout(() => { if (counterIn === e) { send({ t: 'decline', id: e.id, from: me.id, to: e.from, counter: 1 }); counterIn = null; outgoing = null; api.closeModals(); api.sys('역제안에 답하지 않아 결투가 취소됐어요.'); } }, 25000);
     } else if (e.t === 'accept' && e.to === me.id && outgoing?.id === e.id) {
       left(); stats.challenges++; save(); // 상대가 수락했을 때만 도전 횟수 차감
-      const s = { t: 'start', id: e.id, a: me.id, aName: me.name, b: e.from, bName: outgoing.name };
+      const s = { t: 'start', id: e.id, a: me.id, aName: me.name, b: e.from, bName: outgoing.name, bet: Math.min(outgoing.bet || 0, e.bet ?? outgoing.bet ?? 0) };
       send(s); onEvent(s); outgoing = null;
     } else if (e.t === 'start') {
-      banner(`⚔️ ${e.aName} vs ${e.bName} 대결이 시작되었습니다! (4층 결투장)`);
-      api.chatLine(`⚔️ ${e.aName} vs ${e.bName} 대결 시작!${e.bot ? ' (연습)' : ''}`);
+      banner(`⚔️ ${e.aName} vs ${e.bName} 대결이 시작되었습니다!${e.bet ? ` 💰 판돈 ${won(e.bet * 2)}` : ''} (4층 결투장)`);
+      api.chatLine(`⚔️ ${e.aName} vs ${e.bName} 대결 시작!${e.bot ? ' (연습)' : ''}${e.bet ? ` 💰 각 ${won(e.bet)}씩 걸었어요 (이긴 사람이 ${won(e.bet * 2)})` : ''}`);
       if (e.a === me.id || e.b === me.id) begin(e);
       else if (!e.bot) { watch = { id: e.id, a: e.aName, b: e.bName, aId: e.a, bId: e.b, aHp: HP, bHp: HP, until: performance.now() + (FIGHT + 12) * 1000 }; showBars(true); }
     } else if (e.t === 'hit' && st.active && !st.bot && e.id === st.id && e.to === me.id) {
@@ -139,7 +193,10 @@ export function createDuel(api) {
   function begin(e) {
     const mineA = e.a === me.id;
     Object.assign(st, { active: true, phase: 'count', id: e.id, opp: mineA ? e.b : e.a, oppName: mineA ? e.bName : e.aName, role: mineA ? 'a' : 'b', referee: mineA, bot: !!e.bot, t: 3.5, myHp: HP, oppHp: HP, combo: 1, pending: 0, sc: 0, oppGoneAt: 0, botNext: 0 });
-    invite = null; outgoing = null; api.closeModals();
+    invite = null; outgoing = null; counterIn = null; api.closeModals();
+    // 💰 판돈: 시작할 때 각자 지갑에서 미리 빼 둠 → 끝나면 이긴 사람이 두 배를 받음 (비기면 돌려받음)
+    st.bet = 0;
+    if (!e.bot && e.bet > 0) { if (api.spend(e.bet)) { st.bet = e.bet; api.sys(`💰 판돈 ${won(e.bet)}을 걸었어요!`); } else api.sys('💰 지갑에 돈이 모자라서 판돈 없이 싸워요.'); }
     document.activeElement?.blur?.(); // 버튼·채팅 칸에 남은 커서를 빼서 스페이스바가 바로 공격이 되게
     api.enterArena(mineA ? -1 : 1, st.bot);
     $('duelUI').hidden = false; $('dResult').hidden = true; $('dAttack').hidden = false;
@@ -177,6 +234,12 @@ export function createDuel(api) {
     else if (!e.winner) msg = '🤝 무승부! 레벨 · 칭호는 그대로예요.';
     else if (e.winner === me.id) { stats.win++; stats.level++; const was = stats.loser; stats.loser = false; msg = `🏆 승리! <b>Lv.${stats.level}</b>로 올랐어요 🎉${was ? '<br>😵패배자 칭호도 떨어졌어요!' : ''}`; api.beep(784, 0.3); }
     else { stats.lose++; stats.loser = true; stats.loseDay = today(); msg = `😵 패배… 이름표에 <b>패배자</b> 칭호가 붙었어요.<br><small>오늘 하루만 붙어요. 오늘 다시 이기면 바로 떨어져요.</small>`; }
+    if (st.bet > 0) { // 💰 판돈 정산
+      if (e.winner === me.id) { api.earn(st.bet * 2); msg += `<br><b class="bet-big">💰 판돈 ${won(st.bet * 2)}을 가져왔어요!</b>`; }
+      else if (!e.winner) { api.earn(st.bet); msg += `<br><small>💰 비겨서 판돈 ${won(st.bet)}을 돌려받았어요.</small>`; }
+      else msg += `<br><small>💸 판돈 ${won(st.bet)}을 잃었어요…</small>`;
+      st.bet = 0;
+    }
     save();
     $('dResText').innerHTML = `${msg}<br><small>전적 ${stats.win}승 ${stats.lose}패 · Lv.${stats.level}</small>`;
     $('dResult').hidden = false; $('dAttack').hidden = true;

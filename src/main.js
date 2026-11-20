@@ -155,6 +155,7 @@ const peers = new Map();
 const lvName = (name, lv, loser = false) => `${loser ? '😵패배자 ' : ''}${lv > 1 ? `Lv.${lv} ` : ''}${name}`;
 const duel = createDuel({
   $, me, peers, isTouch,
+  cash: () => money.cash(), spend: (n) => money.spend(n), earn: (n) => money.earn(n),
   net: () => net,
   openModal: (id) => openModal(id), closeModals: () => closeModals(),
   sys: (t) => sysMessage(t), chatLine: (t) => sysMessage(t),

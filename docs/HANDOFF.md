@@ -139,3 +139,7 @@ docs/HANDOFF.md 를 먼저 읽고 그대로 이어서 해줘.
 - 가격(시급 10,320원 기준): 3만~8만(소품·머플러) · 12만~35만(가방) · 15만~25만(고리·날개) · 28만~45만(옷) · 30만(왕관) · 100만(티아라).
 - 저장: wallets.stocks 안의 `__items`(산 것) · `__wear`(착용) — 새 SQL 필요 없음. 다른 사람에게는 상태 `ac`('crown,wings')로 전달 → `Avatar.setAcc`.
 - 눈 내리기는 느려질 수 있어서 껐음(main.js `snow = null`, xmas.js createSnow는 남겨 둠).
+
+## ⚔️ 결투 판돈 (duel.js)
+- 상대를 고르면 '💰 얼마를 걸까요?' 창(#duelBet)에서 금액 입력(0~내 현금) → invite에 bet. 받은 사람(#duelAsk): 현금이 모자라면 수락 버튼이 꺼지고, 아래 칸에서 '역제안'({t:'counter', bet}) 가능 → 신청자(#duelCounter)가 수락하면 바로 start(bet), 거절하면 취소.
+- start 때 각자 지갑에서 bet을 미리 뺌(money.spend) → 끝나면 이긴 사람이 bet×2(money.earn), 비기면 bet 돌려받음, 진 사람은 그대로 잃음. 업무 괴물(연습)은 판돈 없음.

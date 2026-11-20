@@ -254,6 +254,25 @@
       <header><h2>⚔️ 결투 신청이 왔어요</h2></header>
       <p id="dAskText"></p>
       <div class="g-btns"><button id="dAccept" class="primary">수락</button><button id="dDecline">거절</button></div>
+      <div class="counter-box"><small id="dCounterInfo"></small><div class="inv-act wide"><input id="dCounterAmt" type="number" min="0" step="1000" inputmode="numeric"><button id="dCounterBtn" type="button">💬 이 금액으로 역제안</button></div></div>
+    </div>
+  </div>
+  <!-- 💰 결투 판돈 정하기 -->
+  <div id="duelBet" class="modal" hidden>
+    <div class="modal-card">
+      <header><h2 id="dBetTitle">💰 얼마를 걸까요?</h2><button class="close" data-close>✕</button></header>
+      <p id="dBetInfo" class="sub" style="text-align:left"></p>
+      <div class="inv-act wide"><input id="dBetAmt" type="number" min="0" step="1000" inputmode="numeric"><span>원</span></div>
+      <div id="dBetChips" class="chips" style="margin:10px 0"><button type="button" data-v="0">0원</button><button type="button" data-v="10000">1만</button><button type="button" data-v="50000">5만</button><button type="button" data-v="100000">10만</button><button type="button" data-v="all">전부</button></div>
+      <button id="dBetGo" class="primary" type="button" style="width:100%">⚔️ 이 금액으로 결투 신청</button>
+    </div>
+  </div>
+  <!-- 💬 역제안 받음 -->
+  <div id="duelCounter" class="modal" hidden>
+    <div class="modal-card">
+      <header><h2>💬 역제안이 왔어요</h2></header>
+      <p id="dCText"></p>
+      <div class="g-btns"><button id="dCAccept" class="primary">이 금액으로 결투!</button><button id="dCDecline">취소</button></div>
     </div>
   </div>
 
