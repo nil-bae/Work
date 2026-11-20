@@ -7,6 +7,7 @@ import { supa } from './net.js';
 
 const HP = 100, FIGHT = 30;   // 체력, 제한 시간(초)
 const DAILY = 2;              // 사람에게 하는 도전: 하루 최대 횟수
+const ASK_SEC = 60;           // 신청 · 역제안에 답할 시간 (금액을 고민할 수 있게 넉넉히)
 export const SWORD = '소환의 검';
 export const BOT_NAME = '👾 업무 괴물';
 
@@ -43,7 +44,7 @@ export function createDuel(api) {
   // 날짜가 바뀌면 패배자 칭호를 뗌 (바뀌었으면 true)
   const expire = () => { if (stats.loser && stats.loseDay !== today()) { stats.loser = false; stats.loseDay = ''; return true; } return false; };
   const left = () => { if (stats.day !== today()) { stats.day = today(); stats.challenges = 0; save(); } return Math.max(0, DAILY - stats.challenges); };
-  let invite = null, outgoing = null, betTarget = null, counterIn = null;
+  let invite = null, outgoing = null, betTarget = null, counterIn = null, askTimer = 0;
   const won = (n) => `${Math.round(n).toLocaleString('ko-KR')}원`;
 
   const send = (e) => api.net()?.sendEvent(e);
@@ -101,7 +102,7 @@ export function createDuel(api) {
     outgoing = { to: t.id, name: t.name, id: did, bet };
     send({ t: 'invite', id: did, from: me.id, fromName: me.name, fromLv: stats.level, to: t.id, bet });
     api.sys(`⚔️ ${t.name}님에게 ${bet ? `💰 ${won(bet)}을 걸고 ` : ''}정식으로 결투를 신청했어요. 수락을 기다리는 중…`);
-    setTimeout(() => { if (outgoing?.id === did && !outgoing.countered && !st.active) { api.sys(`${outgoing.name}님이 답이 없어요. 결투 신청이 취소됐어요.`); outgoing = null; } }, 25000);
+    setTimeout(() => { if (outgoing?.id === did && !outgoing.countered && !st.active) { api.sys(`${outgoing.name}님이 답이 없어요. 결투 신청이 취소됐어요.`); outgoing = null; } }, (ASK_SEC + 10) * 1000);
   }
   $('dBetGo').onclick = sendInvite;
   $('dBetAmt').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendInvite(); });
@@ -116,7 +117,7 @@ export function createDuel(api) {
   $('dDecline').onclick = () => { if (invite) send({ t: 'decline', id: invite.id, from: me.id, to: invite.from }); invite = null; api.closeModals(); };
   // 💬 역제안: 받은 사람이 다른 금액으로 다시 제안
   $('dCounterBtn').onclick = () => {
-    if (!invite) return;
+    if (!invite) { api.closeModals(); api.sys('⏳ 시간이 지나 이미 취소된 신청이에요.'); return; }
     const bet = Math.max(0, Math.floor(+$('dCounterAmt').value || 0));
     if (bet > api.cash()) { alert(`지갑에 ${won(api.cash())}밖에 없어요.`); return; }
     if (bet === (invite.bet || 0)) { $('dAccept').click(); return; }
@@ -151,9 +152,17 @@ export function createDuel(api) {
       $('dCounterAmt').value = Math.floor(Math.min(bet || 10000, cash) / 1000) * 1000;
       $('dCounterInfo').textContent = `다른 금액으로 하고 싶으면 (내 지갑 ${won(cash)})`;
       api.openModal('duelAsk'); api.beep(880, 0.15);
-      setTimeout(() => { if (invite?.id === e.id) { send({ t: 'decline', id: e.id, from: me.id, to: e.from }); invite = null; api.closeModals(); } }, 20000);
+      // 남은 시간 표시, 시간이 지나면 '시간 초과'로 취소 (상대에게도 거절이 아니라 시간 초과로 알림)
+      const until = Date.now() + ASK_SEC * 1000;
+      clearInterval(askTimer);
+      askTimer = setInterval(() => {
+        if (invite?.id !== e.id) { clearInterval(askTimer); return; }
+        const left = Math.ceil((until - Date.now()) / 1000);
+        $('dAskLeft').textContent = `⏳ ${left}초 안에 답해 주세요`;
+        if (left <= 0) { clearInterval(askTimer); send({ t: 'decline', id: e.id, from: me.id, to: e.from, timeout: 1 }); invite = null; api.closeModals(); api.sys('⏳ 시간이 지나서 결투 신청이 취소됐어요.'); }
+      }, 250);
     } else if (e.t === 'decline' && e.to === me.id && outgoing?.id === e.id) {
-      api.sys(e.busy ? `${outgoing.name}님은 지금 결투 중이에요.` : `${outgoing.name}님이 결투를 거절했어요. (도전 횟수는 그대로예요)`);
+      api.sys(e.busy ? `${outgoing.name}님은 지금 결투 중이에요.` : e.timeout ? `⏳ ${outgoing.name}님이 시간 안에 답하지 않아 결투 신청이 취소됐어요.` : `${outgoing.name}님이 결투를 거절했어요. (도전 횟수는 그대로예요)`);
       outgoing = null;
     } else if (e.t === 'decline' && e.to === me.id && e.counter) {
       api.sys('상대가 역제안을 거절했어요. 결투가 취소됐어요.');
@@ -162,7 +171,7 @@ export function createDuel(api) {
       $('dCText').innerHTML = `<b>${esc(e.fromName)}</b>님이 <span class="bet-big">💰 각 ${won(e.bet)}</span>으로 역제안했어요.<small>처음 제안: ${won(outgoing.bet || 0)} · 내 지갑 ${won(api.cash())}</small>`;
       $('dCAccept').disabled = e.bet > api.cash();
       api.openModal('duelCounter'); api.beep(880, 0.15);
-      setTimeout(() => { if (counterIn === e) { send({ t: 'decline', id: e.id, from: me.id, to: e.from, counter: 1 }); counterIn = null; outgoing = null; api.closeModals(); api.sys('역제안에 답하지 않아 결투가 취소됐어요.'); } }, 25000);
+      setTimeout(() => { if (counterIn === e) { send({ t: 'decline', id: e.id, from: me.id, to: e.from, counter: 1 }); counterIn = null; outgoing = null; api.closeModals(); api.sys('역제안에 답하지 않아 결투가 취소됐어요.'); } }, ASK_SEC * 1000);
     } else if (e.t === 'accept' && e.to === me.id && outgoing?.id === e.id) {
       left(); stats.challenges++; save(); // 상대가 수락했을 때만 도전 횟수 차감
       const s = { t: 'start', id: e.id, a: me.id, aName: me.name, b: e.from, bName: outgoing.name, bet: Math.min(outgoing.bet || 0, e.bet ?? outgoing.bet ?? 0) };
