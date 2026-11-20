@@ -1,6 +1,6 @@
 // 💰 월급 · 지갑 · 💹 투자 (모두 게임 속 가상 돈)
 // - 사옥에 접속해 있는 시간만큼 시급(2026년 최저임금 10,320원)으로 일급이 쌓임 (다른 탭에 가 있어도 셈, 하루 최대 12시간)
-// - 쌓인 급여는 매달 25일(그 뒤 처음 들어올 때)에 지갑 현금으로 들어옴
+// - 일급은 일하는 대로 바로 지갑 현금으로 들어옴 (예전에 25일 월급으로 쌓여 있던 돈도 들어오면 바로 지급)
 // - 3층 투자 상담실: 가상 주식 4종목(가격이 1시간마다 바뀜, 모두 같은 가격) · 적금(하루 0.1% 이자)
 // 저장: Supabase 'wallets' 표 (없으면 이 브라우저에만)
 import { supa } from './net.js';
@@ -65,10 +65,8 @@ export function createMoney(api) {
     const notes = [];
     const t = today();
     if (w.day !== t) { if (w.day_secs > 0) notes.push(`📅 지난 근무일(${w.day.slice(5).replace('-', '/')}) 일급 ${won(Math.min(w.day_secs, MAX_SECS) / 3600 * WAGE)}이 급여에 쌓였어요.`); w.day = t; w.day_secs = 0; }
-    if (new Date().getDate() >= PAYDAY && w.paid_month !== month()) {
-      w.paid_month = month();
-      if (w.unpaid >= 1) { notes.push(`💸 월급날! 이번 달 월급 ${won(w.unpaid)}이 지갑에 들어왔어요.`); w.cash += Math.round(w.unpaid); w.unpaid = 0; }
-    }
+    // 예전 '25일 월급'으로 쌓여 있던 급여는 바로 지갑으로 (이제는 일급이 일하는 대로 바로 들어옴)
+    if (w.unpaid >= 1) { notes.push(`💸 그동안 쌓여 있던 급여 ${won(w.unpaid)}이 지갑에 들어왔어요! 이제 일급은 일하는 대로 바로 들어와요.`); w.cash += w.unpaid; w.unpaid = 0; }
     const days = dayDiff(w.sav_day || t, t);
     if (days > 0) { const before = w.savings; w.savings = w.savings * Math.pow(1 + SAV_RATE, days); w.sav_day = t; if (w.savings - before >= 1) notes.push(`🏦 적금 이자 ${won(w.savings - before)}이 붙었어요.`); }
     if (notes.length) dirty = true;
@@ -93,7 +91,7 @@ export function createMoney(api) {
     return notes;
   }
   // 입구에서 보여 줄 오늘의 일급
-  const greeting = () => w ? `💰 오늘 근무 ${hm(w.day_secs)} · 오늘의 일급 ${won(dayPay())} (시급 ${won(WAGE)}) · ${PAYDAY}일 월급 예정 ${won(w.unpaid)}` : '';
+  const greeting = () => w ? `💰 오늘 근무 ${hm(w.day_secs)} · 오늘의 일급 ${won(dayPay())} (시급 ${won(WAGE)}, 일하는 대로 지갑에 바로 들어와요) · 지갑 ${won(w.cash)}` : '';
   const dayPay = () => Math.min(w.day_secs, MAX_SECS) / 3600 * WAGE;
 
   // 1초마다: 화면이 켜져 있고 사옥 안에 있으면 근무 시간 +1초
@@ -106,7 +104,7 @@ export function createMoney(api) {
     const notes = settle(); notes.forEach((n) => api.toast(n));
     const add = Math.min(gap > 300 ? 0 : gap, MAX_SECS - w.day_secs);
     if (add > 0) {
-      w.day_secs += add; w.unpaid += (WAGE / 3600) * add; dirty = true;
+      w.day_secs += add; w.cash += (WAGE / 3600) * add; dirty = true; // 일급: 일한 만큼 바로 지갑으로
       if (w.day_secs >= MAX_SECS) api.toast(`⏰ 오늘 근무 12시간을 채웠어요! 오늘 일급은 ${won(dayPay())}이에요. 푹 쉬세요 😊`);
     }
     if (document.hidden) { if (dirty && ++tick % 2 === 0) save(); return; }
@@ -126,19 +124,17 @@ export function createMoney(api) {
   function renderWallet() {
     if (!w) return;
     const sv = stockValue(), pl = sv - stockCost(), d = new Date();
-    const payDate = d.getDate() >= PAYDAY && w.paid_month === month() ? new Date(d.getFullYear(), d.getMonth() + 1, PAYDAY) : new Date(d.getFullYear(), d.getMonth(), PAYDAY);
     $('walletBody').innerHTML = `
       <div class="wal-big"><small>지갑 (현금)</small><b>${won(w.cash)}</b></div>
       <dl class="wal">
         <dt>⏱ 오늘 근무</dt><dd>${hms(Math.min(w.day_secs, MAX_SECS))} <small>(최대 12시간)</small></dd>
         <dt>💵 오늘의 일급</dt><dd>${won(dayPay())}</dd>
-        <dt>📦 쌓인 급여</dt><dd>${won(w.unpaid)} <small>${payDate.getMonth() + 1}/${PAYDAY} 지급 예정</small></dd>
         <dt>🏦 적금</dt><dd>${won(w.savings)}</dd>
         <dt>📈 주식 평가액</dt><dd>${won(sv)} ${sv ? `<small class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : ''}${won(pl)}</small>` : ''}</dd>
         <dt>💎 총 자산</dt><dd><b>${won(w.cash + w.savings + sv)}</b></dd>
       </dl>
       <button type="button" class="link" id="walletItems" style="display:block;margin:4px 0 10px">👜 내 아이템 보기 · 착용하기</button>
-      <p class="sub">시급 ${won(WAGE)}(2026년 최저임금) · 사옥에 접속해 있는 동안 세요(다른 탭에 가 있어도 OK) · 매달 ${PAYDAY}일에 월급이 지갑으로 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
+      <p class="sub">시급 ${won(WAGE)}(2026년 최저임금) · 사옥에 접속해 있는 동안 세요(다른 탭에 가 있어도 OK) · 일급은 일하는 대로 <b>바로 지갑</b>에 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
   }
   function openWallet() { if (!w) return; renderWallet(); api.openModal('walletModal'); }
   document.addEventListener('click', (e) => { if (e.target?.id === 'walletItems') api.openItems?.(); });

@@ -283,6 +283,17 @@ const AM = {
   bfly: new THREE.MeshStandardMaterial({ color: 0x8fd3ff, roughness: 0.4, transparent: true, opacity: 0.85, side: THREE.DoubleSide, emissive: 0x1a3a66 }),
   bfly2: new THREE.MeshStandardMaterial({ color: 0xff9ad5, roughness: 0.4, transparent: true, opacity: 0.85, side: THREE.DoubleSide, emissive: 0x4a1a3a }),
   bat: new THREE.MeshStandardMaterial({ color: 0x3a1f4a, roughness: 0.6, side: THREE.DoubleSide }),
+  fur: new THREE.MeshStandardMaterial({ color: 0xf1e6d6, roughness: 1, flatShading: true }),
+  furBrown: new THREE.MeshStandardMaterial({ color: 0x8a6046, roughness: 1, flatShading: true }),
+  tweed: new THREE.MeshStandardMaterial({ color: 0xf2c6d0, roughness: 0.95 }),
+  tweedTrim: new THREE.MeshStandardMaterial({ color: 0x2a2230, roughness: 0.8 }),
+  velvet: new THREE.MeshStandardMaterial({ color: 0x9e1530, roughness: 0.85, side: THREE.DoubleSide }),
+  dress: new THREE.MeshStandardMaterial({ color: 0xe8c9a0, roughness: 0.3, metalness: 0.35, emissive: 0x2a1a08 }),
+  cashmere: new THREE.MeshStandardMaterial({ color: 0xc9a07a, roughness: 0.95 }),
+  leather: new THREE.MeshStandardMaterial({ color: 0x7a4a2a, roughness: 0.5 }),
+  leatherBlack: new THREE.MeshStandardMaterial({ color: 0x141418, roughness: 0.35, metalness: 0.1 }),
+  tan: new THREE.MeshStandardMaterial({ color: 0xd8b48a, roughness: 0.55 }),
+  champagne: new THREE.MeshStandardMaterial({ color: 0xf0d9a8, roughness: 0.2, metalness: 0.7, emissive: 0x2a1e08 }),
 };
 const flower = [0xff6b8b, 0xffd23f, 0xffffff, 0xb784ff, 0xff9a3d].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 }));
 const H0 = 0.78;
@@ -293,7 +304,7 @@ function wingShape(w, h, round) { // 날개 한쪽 (x+ 쪽으로 펼침)
   else { sh.bezierCurveTo(w * 0.2, h * 0.7, w * 0.8, h, w, h * 0.55); for (let i = 0; i < 4; i++) sh.quadraticCurveTo(w * (0.9 - i * 0.22), h * (0.3 - i * 0.12), w * (0.78 - i * 0.22), h * (0.18 - i * 0.14)); sh.lineTo(0, -0.02); }
   return new THREE.ShapeGeometry(sh, 16);
 }
-export const ACC_SLOTS = { face: '얼굴', head: '머리', top: '머리 위', back: '등' };
+export const ACC_SLOTS = { face: '얼굴', head: '머리', top: '머리 위', back: '등', body: '옷', neck: '목', bag: '가방' };
 export function makeAcc(id) {
   const g = new THREE.Group(); g.userData.id = id;
   const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.scale.set(sx, sy, sz); g.add(m); return m; };
@@ -356,6 +367,65 @@ export function makeAcc(id) {
       g.userData.wings = wl;
       break;
     }
+    // ----- 👗 옷 (몸통에 덧입음, 소매는 팔에 붙임) -----
+    case 'furcoat': // 하얀 퍼 코트
+      add(new THREE.CylinderGeometry(0.17, 0.215, 0.34, 20), AM.fur, 0, 0.39, 0);
+      add(new THREE.TorusGeometry(0.13, 0.06, 8, 20), AM.fur, 0, 0.55, 0.0, Math.PI / 2, 0, 0);
+      for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; add(new THREE.IcosahedronGeometry(0.045, 0), AM.fur, Math.sin(a) * 0.21, 0.23, Math.cos(a) * 0.21); }
+      g.userData.sleeve = { mat: AM.fur, r: 0.06, cuff: AM.fur };
+      break;
+    case 'tweed': // 핑크 트위드 재킷 + 금단추
+      add(new THREE.CylinderGeometry(0.162, 0.19, 0.27, 20), AM.tweed, 0, 0.415, 0);
+      add(new THREE.TorusGeometry(0.16, 0.012, 6, 24), AM.tweedTrim, 0, 0.29, 0, Math.PI / 2, 0, 0);
+      add(new THREE.TorusGeometry(0.085, 0.013, 6, 20), AM.tweedTrim, 0, 0.55, 0.02, Math.PI / 2 - 0.25, 0, 0);
+      add(new THREE.BoxGeometry(0.012, 0.26, 0.012), AM.tweedTrim, 0, 0.42, 0.183, -0.14, 0, 0);
+      for (const y of [0.48, 0.41, 0.34]) for (const e of [-1, 1]) add(new THREE.SphereGeometry(0.011, 8, 6), AM.gold, e * 0.035, y, 0.18 + (0.5 - y) * 0.14);
+      g.userData.sleeve = { mat: AM.tweed, r: 0.054, cuff: AM.tweedTrim };
+      break;
+    case 'cape': { // 레드 벨벳 망토
+      const cape = new THREE.CylinderGeometry(0.2, 0.33, 0.5, 20, 1, true, Math.PI * 0.5, Math.PI);
+      add(cape, AM.velvet, 0, 0.3, -0.02);
+      add(new THREE.TorusGeometry(0.15, 0.03, 8, 24), AM.velvet, 0, 0.55, 0, Math.PI / 2, 0, 0);
+      add(new THREE.SphereGeometry(0.03, 10, 8), AM.gold, 0, 0.53, 0.15);
+      break;
+    }
+    case 'dress': // 반짝이 파티 드레스 (발목까지)
+      add(new THREE.CylinderGeometry(0.158, 0.17, 0.2, 20), AM.dress, 0, 0.45, 0);
+      add(new THREE.CylinderGeometry(0.17, 0.33, 0.32, 24, 1, true), AM.dress, 0, 0.19, 0);
+      add(new THREE.TorusGeometry(0.17, 0.018, 6, 24), AM.gold, 0, 0.35, 0, Math.PI / 2, 0, 0);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.012, 0.09, 0.012), AM.gold, e * 0.08, 0.57, 0.08, 0.3, 0, 0);
+      for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2, yy = 0.08 + (i % 3) * 0.08; add(new THREE.OctahedronGeometry(0.012, 0), AM.diamond, Math.sin(a) * (0.33 - (yy - 0.03) * 0.5), yy, Math.cos(a) * (0.33 - (yy - 0.03) * 0.5)); }
+      break;
+    case 'muffler': // 캐시미어 머플러 (목)
+      add(new THREE.TorusGeometry(0.12, 0.045, 8, 20), AM.cashmere, 0, 0.555, 0.01, Math.PI / 2 - 0.15, 0, 0);
+      add(new THREE.BoxGeometry(0.075, 0.2, 0.035), AM.cashmere, 0.07, 0.44, 0.17, -0.2, 0, 0.1);
+      for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(0.075, 0.008, 0.036), AM.red, 0.07, 0.38 + i * 0.03, 0.18, -0.2, 0, 0.1);
+      break;
+    // ----- 👜 가방 -----
+    case 'tote': // 미니 토트백 (손에 듦)
+      g.userData.hand = true;
+      add(new THREE.BoxGeometry(0.15, 0.12, 0.07), AM.tan, 0, -0.38, 0.02);
+      add(new THREE.TorusGeometry(0.045, 0.008, 6, 16, Math.PI), AM.leather, 0, -0.32, 0.02);
+      add(new THREE.BoxGeometry(0.03, 0.02, 0.072), AM.gold, 0, -0.35, 0.02);
+      break;
+    case 'clutch': // 반짝이 클러치 (손에 듦)
+      g.userData.hand = true;
+      add(new THREE.BoxGeometry(0.14, 0.075, 0.035), AM.champagne, 0, -0.29, 0.05, 0, 0, 0.1);
+      add(new THREE.SphereGeometry(0.012, 8, 6), AM.diamond, 0.0, -0.255, 0.07);
+      break;
+    case 'chainbag': { // 퀼팅 체인백 (어깨에 멤)
+      add(new THREE.BoxGeometry(0.15, 0.11, 0.055), AM.leatherBlack, 0.21, 0.3, 0.06, 0, 0, 0);
+      for (const d of [-0.03, 0, 0.03]) { add(new THREE.BoxGeometry(0.15, 0.004, 0.058), AM.black, 0.21, 0.3 + d, 0.06); add(new THREE.BoxGeometry(0.004, 0.11, 0.058), AM.black, 0.21 + d * 1.4, 0.3, 0.06); }
+      add(new THREE.BoxGeometry(0.03, 0.02, 0.06), AM.gold, 0.21, 0.335, 0.065);
+      for (let i = 0; i < 12; i++) { const t = i / 11; add(new THREE.TorusGeometry(0.012, 0.004, 4, 8), AM.gold, 0.21 - t * 0.33, 0.36 + t * 0.2, 0.06 + Math.sin(t * Math.PI) * 0.1, 0, i * 0.8, 0); }
+      break;
+    }
+    case 'backpack': // 가죽 백팩 (등)
+      add(new THREE.BoxGeometry(0.24, 0.26, 0.11), AM.leather, 0, 0.42, -0.24);
+      add(new THREE.BoxGeometry(0.18, 0.1, 0.04), AM.leather, 0, 0.36, -0.31);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.03, 0.26, 0.02), AM.leatherBlack, e * 0.09, 0.43, 0.17, -0.14, 0, 0);
+      add(new THREE.BoxGeometry(0.05, 0.03, 0.015), AM.gold, 0, 0.42, -0.33);
+      break;
   }
   return g;
 }
@@ -414,7 +484,7 @@ export class Avatar {
     this.body.scale.setScalar(SCALE);
     this.body.add(this.torso, this.legL, this.legR, this.armL, this.armR);
     this.accGroup = new THREE.Group(); this.body.add(this.accGroup);
-    for (const id of this.acc || []) this.accGroup.add(makeAcc(id));
+    this.attachAcc();
   }
   setSword(on) { this.swordOn = on; if (this.sword) this.sword.visible = on; }
   // 결투에서 지면 뒤로 쓰러짐
@@ -444,9 +514,26 @@ export class Avatar {
     if (ids.join(',') === (this.acc || []).join(',')) return;
     this.acc = ids;
     if (!this.accGroup) return;
+    this.attachAcc();
+  }
+  // 아이템 달기: 보통은 몸에, 손가방은 오른손에, 옷 소매는 두 팔에
+  attachAcc() {
+    for (const o of this.accExtra || []) { o.parent?.remove(o); o.traverse((m) => m.geometry?.dispose()); }
+    this.accExtra = [];
     this.accGroup.traverse((o) => o.geometry?.dispose());
     this.accGroup.clear();
-    for (const id of ids) this.accGroup.add(makeAcc(id));
+    for (const id of this.acc || []) {
+      const a = makeAcc(id);
+      if (a.userData.hand) { this.armR.add(a); this.accExtra.push(a); continue; }
+      this.accGroup.add(a);
+      const sl = a.userData.sleeve;
+      if (sl) for (const arm of [this.armL, this.armR]) {
+        const sg = new THREE.Group();
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(sl.r * 0.95, sl.r, 0.22, 12), sl.mat); m.position.y = -0.11; sg.add(m);
+        const c = new THREE.Mesh(new THREE.CylinderGeometry(sl.r + 0.006, sl.r + 0.006, 0.035, 12), sl.cuff); c.position.y = -0.21; sg.add(c);
+        arm.add(sg); this.accExtra.push(sg);
+      }
+    }
   }
   setColor(color) { this.setLook(color, this.gender, this.look); }
   setName(name) {

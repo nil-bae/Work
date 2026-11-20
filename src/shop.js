@@ -17,7 +17,20 @@ export const ITEMS = [
   { id: 'wings', name: '천사 날개', icon: '🕊️', slot: 'back', price: 250000 },
   { id: 'crown', name: '황금 왕관', icon: '👑', slot: 'head', price: 300000 },
   { id: 'diacrown', name: '다이아몬드 티아라', icon: '💎', slot: 'head', price: 1000000 },
+  // 👜 가방
+  { id: 'tote', name: '미니 토트백', icon: '👜', slot: 'bag', price: 120000, cat: 'bag' },
+  { id: 'backpack', name: '가죽 백팩', icon: '🎒', slot: 'bag', price: 180000, cat: 'bag' },
+  { id: 'clutch', name: '샴페인 골드 클러치', icon: '👛', slot: 'bag', price: 220000, cat: 'bag' },
+  { id: 'chainbag', name: '퀼팅 체인백', icon: '🖤', slot: 'bag', price: 350000, cat: 'bag' },
+  // 👗 옷
+  { id: 'muffler', name: '캐시미어 머플러', icon: '🧣', slot: 'neck', price: 70000, cat: 'wear' },
+  { id: 'tweed', name: '핑크 트위드 재킷', icon: '🧥', slot: 'body', price: 280000, cat: 'wear' },
+  { id: 'cape', name: '레드 벨벳 망토', icon: '🦸', slot: 'body', price: 300000, cat: 'wear' },
+  { id: 'dress', name: '샴페인 파티 드레스', icon: '👗', slot: 'body', price: 380000, cat: 'wear' },
+  { id: 'furcoat', name: '화이트 퍼 코트', icon: '🤍', slot: 'body', price: 450000, cat: 'wear' },
 ];
+for (const it of ITEMS) it.cat ||= 'acc';
+const CATS = { all: '전체', acc: '✨ 액세서리', bag: '👜 가방', wear: '👗 옷' };
 export const SHOP = { x0: 17.5, x1: 25.5, z0: -8, z1: 0, door: [-5.1, -2.9], counter: { x: 23.1, z: -4 }, clerk: { x: 24.75, z: -4 } };
 const won = (n) => `${Math.round(n).toLocaleString('ko-KR')}원`;
 
@@ -121,6 +134,14 @@ export function createShop(colliders) {
     kr.add(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 14), SM.spot, x, Hh - 0.05, z);
   });
   k.flush(group); kr.flush(roof); group.add(roof);
+  // 쇼윈도 마네킹 (문 양옆, 바깥을 바라봄): 퍼 코트 + 체인백 / 파티 드레스 + 클러치
+  const mannequins = [[-6.9, ['furcoat', 'chainbag', 'diacrown']], [-1.1, ['dress', 'clutch', 'flower']]].map(([z, acc]) => {
+    const m = new Avatar('', '#efe9df', 'f', '15000'); m.label.visible = false; m.setAcc(acc);
+    m.root.position.set(x0 + 0.65, 0.08, z); m.root.rotation.y = -Math.PI / 2;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.08, 20), SM.gold); base.position.set(x0 + 0.65, 0.04, z); group.add(base);
+    group.add(m.root); col(x0 + 0.35, z - 0.3, x0 + 0.95, z + 0.3);
+    return m;
+  });
   // 직원 (NPC)
   const clerk = new Avatar('👜 부티크 매니저', '#1b1b22', 'f', '33100');
   clerk.root.position.set(SHOP.clerk.x, 0, SHOP.clerk.z); clerk.root.rotation.y = -Math.PI / 2;
@@ -136,6 +157,7 @@ export function createShop(colliders) {
       display.forEach((h, i) => (h.rotation.y = t * 0.6 + i));
       roof.visible = !(onGround && px > x0 - 0.3 && px < x1 + 0.3 && pz > z0 - 0.3 && pz < z1 + 0.3);
       clerk.animate(dt, 0, now);
+      mannequins.forEach((m) => m.animate(dt, 0, now));
     },
   };
 }
@@ -143,12 +165,14 @@ export function createShop(colliders) {
 // ---------- 상점 창 ----------
 export function createShopUI(api) {
   const { $, money } = api;
-  let tab = 'buy';
+  let tab = 'buy', cat = 'all';
   function render() {
     const owned = money.items(), wear = money.wear();
     document.querySelectorAll('#shopTabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
+    $('shopCats').innerHTML = Object.entries(CATS).map(([k, v]) => `<button type="button" data-c="${k}" class="${k === cat ? 'on' : ''}">${v}</button>`).join('');
+    $('shopCats').querySelectorAll('button').forEach((b) => (b.onclick = () => { cat = b.dataset.c; render(); }));
     $('shopCash').innerHTML = `지갑 현금 <b>${won(money.cash())}</b>`;
-    const list = tab === 'buy' ? ITEMS : ITEMS.filter((it) => owned.includes(it.id));
+    const list = (tab === 'buy' ? ITEMS : ITEMS.filter((it) => owned.includes(it.id))).filter((it) => cat === 'all' || it.cat === cat);
     $('shopGrid').innerHTML = list.length ? list.map((it) => {
       const has = owned.includes(it.id), on = wear[it.slot] === it.id;
       const btn = !has ? `<button data-buy="${it.id}" ${money.cash() < it.price ? 'class="poor"' : ''}>${won(it.price)}</button>` : `<button data-wear="${it.id}" class="${on ? 'on' : ''}">${on ? '✔ 착용 중 (벗기)' : '착용하기'}</button>`;
@@ -156,12 +180,12 @@ export function createShopUI(api) {
     }).join('') : '<p class="sub">아직 산 아이템이 없어요. 부티크에서 골라 보세요!</p>';
     $('shopGrid').querySelectorAll('[data-buy]').forEach((b) => (b.onclick = () => buy(b.dataset.buy)));
     $('shopGrid').querySelectorAll('[data-wear]').forEach((b) => (b.onclick = () => toggle(b.dataset.wear)));
-    $('shopNote').textContent = api.atShop() ? '같은 부위(얼굴 · 머리 · 머리 위 · 등)는 하나씩 착용할 수 있어요.' : '사는 건 부티크 안에서만 할 수 있어요. 산 아이템은 어디서든 착용할 수 있어요.';
+    $('shopNote').textContent = api.atShop() ? '같은 부위(얼굴 · 머리 · 머리 위 · 등 · 옷 · 목 · 가방)는 하나씩 착용할 수 있어요.' : '사는 건 부티크 안에서만 할 수 있어요. 산 아이템은 어디서든 착용할 수 있어요.';
   }
   function buy(id) {
     const it = ITEMS.find((x) => x.id === id); if (!it) return;
     if (!api.atShop()) { alert('부티크 안에서 살 수 있어요 (1층 정원 동쪽 WORK BOUTIQUE).'); return; }
-    if (money.cash() < it.price) { alert(`현금이 ${won(it.price - money.cash())} 모자라요. 월급날(25일)을 기다려 볼까요? 💸`); return; }
+    if (money.cash() < it.price) { alert(`현금이 ${won(it.price - money.cash())} 모자라요. 조금 더 일하면 살 수 있어요! 일급은 일하는 대로 바로 들어와요 💸`); return; }
     if (!confirm(`${it.icon} ${it.name}을(를) ${won(it.price)}에 살까요?`)) return;
     if (!money.buy(it.id, it.price)) return;
     money.setWear(it.slot, it.id); api.changed();
