@@ -311,12 +311,22 @@ export function makeAcc(id) {
   const band = (mat) => add(new THREE.TorusGeometry(0.262, 0.014, 6, 32, Math.PI), mat, 0, H0 + 0.02, 0.02, 0, Math.PI / 2, 0, 1, 1.08, 1);
   switch (id) {
     case 'glasses': // 동그란 금테 안경
-      for (const e of [-1, 1]) { add(new THREE.TorusGeometry(0.052, 0.008, 8, 24), AM.gold, e * 0.09, H0, 0.236); add(new THREE.CircleGeometry(0.05, 20), AM.glass, e * 0.09, H0, 0.237); add(new THREE.CylinderGeometry(0.005, 0.005, 0.2, 6), AM.gold, e * 0.215, H0 + 0.01, 0.13, Math.PI / 2, 0, 0); }
-      add(new THREE.TorusGeometry(0.03, 0.006, 6, 12, Math.PI), AM.gold, 0, H0 + 0.005, 0.238);
+      // 테가 얼굴 속에 반쯤 묻히던 것 → 얼굴 앞으로 꺼내고 바깥쪽을 얼굴 곡선 따라 살짝 뒤로
+      for (const e of [-1, 1]) {
+        add(new THREE.TorusGeometry(0.052, 0.008, 8, 24), AM.gold, e * 0.09, H0, 0.252, 0, e * 0.4, 0);
+        add(new THREE.CircleGeometry(0.05, 20), AM.glass, e * 0.09, H0, 0.252, 0, e * 0.4, 0);
+        add(new THREE.CylinderGeometry(0.005, 0.005, 0.22, 6), AM.gold, e * 0.215, H0 + 0.01, 0.11, Math.PI / 2, 0, 0);
+      }
+      add(new THREE.TorusGeometry(0.026, 0.006, 6, 12, Math.PI), AM.gold, 0, H0 + 0.005, 0.262);
       break;
     case 'sunglasses': // 까만 선글라스
-      for (const e of [-1, 1]) { add(new THREE.SphereGeometry(0.062, 16, 10), AM.shade, e * 0.09, H0 + 0.005, 0.226, 0, 0, 0, 1.15, 0.8, 0.28); add(new THREE.CylinderGeometry(0.006, 0.006, 0.2, 6), AM.black, e * 0.215, H0 + 0.02, 0.13, Math.PI / 2, 0, 0); }
-      add(new THREE.BoxGeometry(0.06, 0.012, 0.012), AM.black, 0, H0 + 0.035, 0.245);
+      // 알이 얼굴 속에 묻혀 안 보이던 것 → 얼굴 앞으로 꺼내고, 얼굴 곡선을 따라 바깥쪽을 살짝 뒤로 돌림
+      for (const e of [-1, 1]) {
+        add(new THREE.SphereGeometry(0.062, 18, 12), AM.shade, e * 0.092, H0 + 0.003, 0.25, 0, e * 0.4, 0, 1.15, 0.9, 0.28);
+        add(new THREE.TorusGeometry(0.062, 0.007, 6, 24), AM.black, e * 0.092, H0 + 0.003, 0.25, 0, e * 0.4, 0, 1.15, 0.9, 1);   // 테
+        add(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 6), AM.black, e * 0.225, H0 + 0.015, 0.11, Math.PI / 2, 0, 0);             // 다리
+      }
+      add(new THREE.BoxGeometry(0.05, 0.012, 0.012), AM.black, 0, H0 + 0.03, 0.268);
       break;
     case 'ribbon': // 큰 리본 머리띠
       band(AM.pink);
@@ -330,11 +340,18 @@ export function makeAcc(id) {
     case 'santa': { // 산타 모자
       // 빨간 둥근 몸통이 흰 테 안을 꽉 채워서 뒤에서 봐도 머리카락이 비치지 않게 (똥머리 · 뽀글 파마까지 덮음)
       const n = g.children.length;
-      add(new THREE.SphereGeometry(0.272, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), AM.red, 0, H0 + 0.12, -0.02, 0, 0, 0, 1.06, 1.05, 1.06);
+      // 둥근 몸통과 뾰족한 끝을 한 덩어리로(이음새 없이): 아래는 둥글고 위로 갈수록 가늘어지며 뒤로 휘어짐
+      const HH = 0.56, prof = [];
+      for (let i = 0; i <= 24; i++) { const t = i / 24; prof.push(new THREE.Vector2(0.29 * Math.pow(Math.max(0, 1 - Math.pow(t, 1.5)), 0.75), t * HH)); }
+      const geo = new THREE.LatheGeometry(prof, 32), pos = geo.attributes.position;
+      const bend = (y) => { const k = y / HH; return [-0.3 * k * k * k, y - 0.14 * k * k * k]; }; // [뒤로, 아래로]
+      for (let i = 0; i < pos.count; i++) { const [dz, ny] = bend(pos.getY(i)); pos.setZ(i, pos.getZ(i) + dz); pos.setY(i, ny); }
+      geo.computeVertexNormals();
+      add(geo, AM.red, 0, H0 + 0.12, -0.02);
       add(new THREE.CircleGeometry(0.29, 28), AM.red, 0, H0 + 0.121, -0.02, Math.PI / 2, 0, 0);       // 밑면(아래에서 봐도 막힘)
       add(new THREE.TorusGeometry(0.275, 0.055, 10, 32), AM.white, 0, H0 + 0.13, -0.02, Math.PI / 2, 0, 0);
-      add(new THREE.ConeGeometry(0.16, 0.32, 18), AM.red, 0.03, H0 + 0.46, -0.09, -0.65, 0, -0.15);   // 뒤로 살짝 넘어간 끝
-      add(new THREE.SphereGeometry(0.06, 12, 10), AM.white, 0.055, H0 + 0.585, -0.2);
+      const [tz, ty] = bend(HH);
+      add(new THREE.SphereGeometry(0.062, 14, 10), AM.white, 0, H0 + 0.12 + ty, -0.02 + tz);             // 방울
       const tilt = new THREE.Group(); tilt.position.set(0, H0 + 0.13, 0); tilt.rotation.x = -0.14; // 앞이 살짝 올라가게
       for (const m of g.children.slice(n)) { m.position.y -= H0 + 0.13; tilt.add(m); }
       g.add(tilt);

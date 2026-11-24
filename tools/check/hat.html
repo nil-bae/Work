@@ -16,5 +16,6 @@ for (let hs = 0; hs < 8; hs++) views.forEach((ry, v) => {
   const a = new Avatar('', '#4f8cff', 'f', `${hs}1010`); a.label.visible = false; a.setAcc([acc]);
   a.root.position.set((hs - 3.5) * 0.82, 1.6 - v * 1.45, 0); a.root.rotation.y = ry; s.add(a.root);
 });
+if (q.get('zoom') === '2') { cam.fov = 14; cam.position.set(0, 2.2, 9); cam.lookAt(0, 0.6, 0); cam.updateProjectionMatrix(); } else if (q.get('zoom')) { cam.fov = 12; cam.position.set(0, -0.2, 9); cam.lookAt(0, -0.55, 0); cam.updateProjectionMatrix(); }
 r.render(s, cam); window.done = true;
 </script></body></html>
