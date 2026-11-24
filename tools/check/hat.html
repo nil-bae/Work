@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "../../vendor/three/three.module.js", "three/addons/": "../../vendor/three/addons/" } }</script>
+<style>body{margin:0;background:#2a3140}</style></head><body>
+<script type="module">
+// 머리 아이템 확인용: 머리 모양 8개 × (뒤 · 옆 · 앞), ?acc=santa
+import * as THREE from 'three';
+import { Avatar } from '../../src/avatar.js';
+const q = new URLSearchParams(location.search), acc = q.get('acc') || 'santa';
+const W = 1400, H = 900, r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping;
+const s = new THREE.Scene(); s.background = new THREE.Color(0x2a3140);
+s.add(new THREE.HemisphereLight(0xdfe6ff, 0x3a3028, 2.2)); const k = new THREE.DirectionalLight(0xffffff, 2); k.position.set(2, 3, 4); s.add(k);
+const cam = new THREE.PerspectiveCamera(22, W / H, 0.1, 50); cam.position.set(0, 6.5, 12); cam.lookAt(0, 0.2, 0);
+const views = [Math.PI, Math.PI / 2, 0];
+for (let hs = 0; hs < 8; hs++) views.forEach((ry, v) => {
+  const a = new Avatar('', '#4f8cff', 'f', `${hs}1010`); a.label.visible = false; a.setAcc([acc]);
+  a.root.position.set((hs - 3.5) * 0.82, 1.6 - v * 1.45, 0); a.root.rotation.y = ry; s.add(a.root);
+});
+r.render(s, cam); window.done = true;
+</script></body></html>

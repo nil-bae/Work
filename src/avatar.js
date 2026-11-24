@@ -328,9 +328,16 @@ export function makeAcc(id) {
       for (const e of [-1, 1]) { add(new THREE.ConeGeometry(0.075, 0.15, 4), AM.black, e * 0.15, H0 + 0.26, 0.0, 0, Math.PI / 4, e * -0.35); add(new THREE.ConeGeometry(0.045, 0.1, 4), AM.pinkIn, e * 0.15, H0 + 0.25, 0.03, 0, Math.PI / 4, e * -0.35); }
       break;
     case 'santa': { // 산타 모자
-      const c = add(new THREE.ConeGeometry(0.2, 0.36, 18), AM.red, 0.03, H0 + 0.36, -0.02, -0.35, 0, -0.25);
-      void c; add(new THREE.TorusGeometry(0.235, 0.05, 8, 24), AM.white, 0, H0 + 0.19, 0, Math.PI / 2 - 0.3, 0, 0);
-      add(new THREE.SphereGeometry(0.06, 10, 8), AM.white, 0.11, H0 + 0.52, -0.14);
+      // 빨간 둥근 몸통이 흰 테 안을 꽉 채워서 뒤에서 봐도 머리카락이 비치지 않게 (똥머리 · 뽀글 파마까지 덮음)
+      const n = g.children.length;
+      add(new THREE.SphereGeometry(0.272, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), AM.red, 0, H0 + 0.12, -0.02, 0, 0, 0, 1.06, 1.05, 1.06);
+      add(new THREE.CircleGeometry(0.29, 28), AM.red, 0, H0 + 0.121, -0.02, Math.PI / 2, 0, 0);       // 밑면(아래에서 봐도 막힘)
+      add(new THREE.TorusGeometry(0.275, 0.055, 10, 32), AM.white, 0, H0 + 0.13, -0.02, Math.PI / 2, 0, 0);
+      add(new THREE.ConeGeometry(0.16, 0.32, 18), AM.red, 0.03, H0 + 0.46, -0.09, -0.65, 0, -0.15);   // 뒤로 살짝 넘어간 끝
+      add(new THREE.SphereGeometry(0.06, 12, 10), AM.white, 0.055, H0 + 0.585, -0.2);
+      const tilt = new THREE.Group(); tilt.position.set(0, H0 + 0.13, 0); tilt.rotation.x = -0.14; // 앞이 살짝 올라가게
+      for (const m of g.children.slice(n)) { m.position.y -= H0 + 0.13; tilt.add(m); }
+      g.add(tilt);
       break;
     }
     case 'flower': // 꽃 화관
