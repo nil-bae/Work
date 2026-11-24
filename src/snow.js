@@ -7,7 +7,7 @@ import { Kit, canvasTex, SNOW, BOX } from './building.js';
 
 const SPEED = 14, UP = 2.0, G = 9.8, COOL = 0.55;   // 던지는 힘 · 위로 · 중력 · 다시 던지기까지(초)
 const REMOTE_DELAY = 0.3;                              // 다른 사람 캐릭터는 조금 늦게 그려지므로 그 사람 눈덩이도 그만큼 늦게
-const PAY_HIT = 300, PAY_TARGET = 100, PAY_DAY = 10000; // 사람 맞히기 · 과녁 맞히기 · 하루 최대 용돈
+const PAY_HIT = 1000, PAY_TARGET = 100, PAY_DAY = 10000; // 사람 맞히기 · 과녁 맞히기 · 하루 최대 용돈
 const WALLS = [[-4.6, -12.9], [4.6, -12.9], [-4.6, -18.3], [4.6, -18.3]]; // 눈 벽 (가로 2.4m)
 const WALL = { w: 2.4, d: 0.6, h: 0.8 };
 const TARGETS = [{ z: -20.7, a: 6.5, sp: 0.42, ph: 0 }, { z: -20.7, a: 6.5, sp: 0.42, ph: Math.PI }, { z: -15.6, a: 2.2, sp: 0.7, ph: 1.3 }];
@@ -18,6 +18,7 @@ const SM = {
   coal: new THREE.MeshStandardMaterial({ color: 0x1b1b20, roughness: 0.6 }),
   carrot: new THREE.MeshStandardMaterial({ color: 0xf07a1f, roughness: 0.6 }),
   wood: new THREE.MeshStandardMaterial({ color: 0x7a5236, roughness: 0.8 }),
+  path: new THREE.MeshStandardMaterial({ color: 0xc9c2b4, roughness: 0.8 }),
   fence: new THREE.MeshStandardMaterial({ color: 0xa87c57, roughness: 0.8 }),
   scarf: new THREE.MeshStandardMaterial({ color: 0xd63a3a, roughness: 0.8 }),
   scarf2: new THREE.MeshStandardMaterial({ color: 0x2f7bd6, roughness: 0.8 }),
@@ -46,6 +47,8 @@ export function createSnowField(colliders) {
     for (let j = 0; j < 5; j++) k.ball(0.11, x + (j % 3 - 1) * 0.2 + 0.9, 0.08 + (j > 2 ? 0.16 : 0), z + (z > cz ? 0.55 : -0.55) + (j > 2 ? 0 : 0.05), SM.snow);
     colliders.push({ x1: x - WALL.w / 2, z1: z - WALL.d / 2, x2: x + WALL.w / 2, z2: z + WALL.d / 2, tall: false, top: WALL.h, fixedTop: true });
   }
+  // 사옥 뒷문에서 눈싸움장 문까지 돌길
+  for (let z = -7.0; z > z1 - 0.2; z -= 0.75) for (const e of [-1, 1]) k.box(1.0, 0.05, 0.6, cx + e * 0.58, -0.01, z, SM.path);
   // 울타리: 둘레를 막고, 사옥 쪽(남쪽) 가운데만 문으로 열어 둠 → 문으로만 드나듦
   const F = SM.fence, FH = 1.05, GATE = 1.4;
   const rail = (ax, az, bx, bz) => {
@@ -191,7 +194,7 @@ export function createSnowFight(api) {
     const p = api.player();
     const was = inField;
     inField = api.active() && inSnow(p.floor, p.x, p.z);
-    if (inField !== was) { hud(); $('btnSnow').hidden = !(inField && api.isTouch); if (inField && !was) api.sys('⛄ 눈싸움장에 들어왔어요! 화면이 보는 쪽으로 눈을 던져요 (F 키 · ❄ 버튼). 사람을 맞히면 +300원, 눈사람 과녁은 +100원 (하루 최대 1만 원).'); }
+    if (inField !== was) { hud(); $('btnSnow').hidden = !(inField && api.isTouch); if (inField && !was) api.sys('⛄ 눈싸움장에 들어왔어요! 화면이 보는 쪽으로 눈을 던져요 (F 키 · ❄ 버튼). 사람을 맞히면 +1,000원, 눈사람 과녁은 +100원 (하루 최대 1만 원).'); }
     field.placeTargets(dt);
     for (const b of [...balls]) {
       if (b.wait > 0) { b.wait -= dt; continue; }

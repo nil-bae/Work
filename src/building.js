@@ -28,6 +28,7 @@ export const BOOTHS = Array.from({ length: 5 }, (_, i) => {
 });
 // 1층 동쪽 옆문 (정원 동쪽 WORK BOUTIQUE로 바로 나감): z 범위
 export const EAST_DOOR = [-2.9, -1.3];
+export const NORTH_DOOR = [-1.15, 1.15]; // 1층 로비 뒷문 → ⛄ 눈싸움장
 export const SNOW = { x0: -9.5, x1: 9.5, z0: -21.5, z1: -9.5 }; // ⛄ 눈싸움장 (사옥 뒤쪽 정원, snow.js)
 export const SPAWN = { floor: 0, x: 0, z: 9.4, yaw: 0 }; // 회사 정문 바로 앞(바깥)에서 문을 바라봄
 
@@ -590,7 +591,19 @@ export function createBuilding() {
   sk.box(HX - 1.15, 4, 0.03, -(HX + 1.15) / 2, 0, HZ, M.glass);
   sk.box(HX - 1.15, 4, 0.03, (HX + 1.15) / 2, 0, HZ, M.glass);
   sk.box(2.3, 1.3, 0.03, 0, 2.7, HZ, M.glass);
-  for (const [w, d, x, z] of [[W, 0.03, 0, -HZ], [0.03, D, -HX, 0]]) sk.box(w, 16, d, x, 0, z, M.glass);
+  sk.box(0.03, 16, D, -HX, 0, 0, M.glass);
+  // 북쪽 유리: 2층부터는 통으로, 1층은 뒷문(눈싸움장 쪽) 자리를 비움
+  {
+    const [n0, n1] = NORTH_DOOR;
+    sk.box(W, 12, 0.03, 0, 4, -HZ, M.glass);
+    sk.box(n0 + HX, 4, 0.03, (-HX + n0) / 2, 0, -HZ, M.glass);
+    sk.box(HX - n1, 4, 0.03, (n1 + HX) / 2, 0, -HZ, M.glass);
+    sk.box(n1 - n0, 1.3, 0.03, (n0 + n1) / 2, 2.7, -HZ, M.glass);
+    sk.box(0.12, 2.7, 0.14, n0, 0, -HZ, M.frame); sk.box(0.12, 2.7, 0.14, n1, 0, -HZ, M.frame);
+    sk.box(n1 - n0 + 0.12, 0.12, 0.14, (n0 + n1) / 2, 2.6, -HZ, M.frame);
+    sk.box(n1 - n0 + 1.0, 0.1, 1.4, (n0 + n1) / 2, 2.8, -HZ - 0.7, M.slab);                // 작은 차양
+    sk.box(n1 - n0 + 0.8, 0.03, 0.03, (n0 + n1) / 2, 2.78, -HZ - 1.38, M.lightWarm);
+  }
   // 동쪽 유리: 2층부터는 통으로, 1층은 옆문 자리를 비움
   {
     const [e0, e1] = EAST_DOOR;
@@ -607,7 +620,7 @@ export function createBuilding() {
   for (let i = 0; i <= nx; i++) {
     const x = -HX + (W * i) / nx;
     if (Math.abs(x) > 1.3) sk.box(0.07, 16, 0.12, x, 0, HZ, M.frame); else sk.box(0.07, 12, 0.12, x, 4, HZ, M.frame);
-    sk.box(0.07, 16, 0.12, x, 0, -HZ, M.frame);
+    if (Math.abs(x) > 1.3) sk.box(0.07, 16, 0.12, x, 0, -HZ, M.frame); else sk.box(0.07, 12, 0.12, x, 4, -HZ, M.frame);
   }
   for (let i = 0; i <= nz; i++) { const z = -HZ + (D * i) / nz; sk.box(0.12, 16, 0.07, HX, 0, z, M.frame); sk.box(0.12, 16, 0.07, -HX, 0, z, M.frame); }
   // 코어 (엘리베이터) — 옥상 위로 펜트하우스
@@ -672,7 +685,9 @@ export function createBuilding() {
     k.box(2.4, 0.02, 1.6, 0, 0.03, HZ - 1, M.carpetWarm); // 입구 매트
     // 1층 유리벽은 걷기를 막음 (입구만 열림)
     col(-HX, HZ - 0.1, -1.1, HZ + 0.1, true); col(1.1, HZ - 0.1, HX, HZ + 0.1, true);
-    col(-HX, -HZ - 0.1, HX, -HZ + 0.1, true);
+    col(-HX, -HZ - 0.1, NORTH_DOOR[0] - 0.05, -HZ + 0.1, true); col(NORTH_DOOR[1] + 0.05, -HZ - 0.1, HX, -HZ + 0.1, true); // 뒷문만 열림
+    k.box(2.4, 0.02, 1.4, 0, 0.03, -HZ + 0.8, M.carpetWarm); // 뒷문 매트
+    panel(group, signTex('⛄ 눈싸움장  ↑', '', { w: 512, h: 112, bg: '#13233a', fg: '#eaf4ff', size: 54 }), 1.3, 0.28, 0, 2.95, -HZ + 0.08, 0);
     col(-HX - 0.1, -HZ, -HX + 0.1, HZ, true);
     col(HX - 0.1, -HZ, HX + 0.1, EAST_DOOR[0] + 0.05, true); col(HX - 0.1, EAST_DOOR[1] - 0.05, HX + 0.1, HZ, true); // 동쪽 옆문만 열림
     k.box(1.4, 0.02, 1.4, HX - 0.8, 0.03, (EAST_DOOR[0] + EAST_DOOR[1]) / 2, M.carpetWarm); // 옆문 매트
