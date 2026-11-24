@@ -1,0 +1,21 @@
+const { chromium, devices } = require('playwright'); const fs = require('fs');
+(async () => {
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-proxy-server'] });
+  const cfg = fs.readFileSync('/home/user/work/src/config.js', 'utf8').replace(/supabaseUrl: '[^']*'/, "supabaseUrl: ''");
+  const ctx = await b.newContext({ ...devices['Galaxy S9+'] });
+  await ctx.route('**/src/config.js', (r) => r.fulfill({ body: cfg, contentType: 'text/javascript' }));
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+  await p.addInitScript(() => { localStorage.setItem('work-day', '1'); localStorage.setItem('work-tower-me', JSON.stringify({ name: '엘리', color: '#ffb547', gender: 'f' })); });
+  await p.goto('http://127.0.0.1:8123/', { waitUntil: 'commit' });
+  await p.waitForFunction(() => window.__work && __work.mode === 'office', null, { timeout: 300000 });
+  await p.waitForTimeout(1500);
+  console.log('news open', await p.evaluate(() => !document.getElementById('newsModal').hidden));
+  await p.screenshot({ path: process.argv[2] + '/news_phone.png' });
+  await p.click('#newsOk');
+  console.log('seen', await p.evaluate(() => localStorage.getItem('work-news-seen')));
+  await p.reload({ waitUntil: 'commit' });
+  await p.waitForFunction(() => window.__work && __work.mode === 'office', null, { timeout: 300000 });
+  await p.waitForTimeout(1500);
+  console.log('after reload open', await p.evaluate(() => !document.getElementById('newsModal').hidden));
+  console.log('errors', errs.join('|') || 'none'); await b.close();
+})();

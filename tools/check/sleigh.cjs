@@ -1,0 +1,40 @@
+const { chromium } = require('playwright'); const fs = require('fs');
+(async () => {
+  const S = process.argv[2];
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-proxy-server'] });
+  const cfg = fs.readFileSync('/home/user/work/src/config.js', 'utf8').replace(/supabaseUrl: '[^']*'/, "supabaseUrl: ''");
+  const ctx = await b.newContext({ viewport: { width: 900, height: 560 } });
+  await ctx.route('**/src/config.js', (r) => r.fulfill({ body: cfg, contentType: 'text/javascript' }));
+  const errs = [];
+  async function open(name, color, g) {
+    const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(name + ': ' + e.message));
+    await p.addInitScript(([n, c, g]) => { localStorage.setItem('work-day', '1'); localStorage.setItem('work-news-seen', '9999'); localStorage.setItem('work-dev', 'dev-' + n); localStorage.setItem('work-tower-me', JSON.stringify({ name: n, color: c, gender: g })); }, [name, color, g]);
+    await p.goto('http://127.0.0.1:8123/', { waitUntil: 'commit' });
+    await p.waitForFunction(() => window.__work && __work.mode === 'office', null, { timeout: 300000 });
+    await p.evaluate(() => { document.querySelector('#chatToggle')?.click(); __work.FLY.free = 14; });
+    return p;
+  }
+  const A = await open('엘리', '#ff6b6b', 'f');
+  const B = await open('민수', '#4f8cff', 'm');
+  for (const p of [A, B]) await p.evaluate(() => { __work.player.x = 22.8; __work.player.z = 18.6; });
+  await A.waitForTimeout(1200);
+  await A.keyboard.press('KeyE'); await A.waitForTimeout(800); await B.keyboard.press('KeyE');
+  await A.evaluate(() => { __work.ride.departAt = Date.now() + 2500; }); await B.evaluate(() => { __work.ride.departAt = Date.now() + 2500; });
+  await A.waitForFunction(() => __work.ride.flying, null, { timeout: 60000 });
+  const pos = (p) => p.evaluate(() => { const r = __work.sleigh.root.position; return [+r.x.toFixed(1), +r.y.toFixed(1), +r.z.toFixed(1)]; });
+  await A.waitForTimeout(3000);
+  console.log('A prompt', await A.evaluate(() => document.getElementById('prompt').textContent));
+  console.log('B prompt', await B.evaluate(() => document.getElementById('prompt').textContent));
+  const t0 = Date.now(), p0 = await pos(A);
+  await A.keyboard.down('ArrowLeft'); await A.keyboard.down('ArrowUp'); await A.waitForTimeout(2500); await A.keyboard.up('ArrowLeft'); await A.keyboard.up('ArrowUp');
+  const p1 = await pos(A), t1 = Date.now();
+  console.log('A moved', p0, '->', p1, 'speed m/s ~', (Math.hypot(p1[0] - p0[0], p1[2] - p0[2]) / ((t1 - t0) / 1000)).toFixed(1));
+  await A.waitForTimeout(800);
+  console.log('A', await pos(A), 'B sees', await pos(B));
+  await A.screenshot({ path: S + '/ride2_A.png' });
+  await B.screenshot({ path: S + '/ride2_B.png' });
+  await A.waitForFunction(() => !__work.ride.flying, null, { timeout: 200000 });
+  await B.waitForFunction(() => !__work.ride.flying, null, { timeout: 30000 });
+  console.log('landed A', await A.evaluate(() => [__work.player.x.toFixed(1), __work.player.z.toFixed(1)]), 'B', await B.evaluate(() => [__work.player.x.toFixed(1), __work.player.z.toFixed(1)]), 'sleigh', await pos(A));
+  console.log('errors', errs.join('|') || 'none'); await b.close();
+})();

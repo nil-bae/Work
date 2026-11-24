@@ -1,0 +1,33 @@
+const { chromium } = require('playwright'); const fs = require('fs');
+(async () => {
+  const S = process.argv[2];
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-proxy-server'] });
+  const cfg = fs.readFileSync('/home/user/work/src/config.js', 'utf8').replace(/supabaseUrl: '[^']*'/, "supabaseUrl: ''");
+  const ctx = await b.newContext({ viewport: { width: 1000, height: 640 } });
+  await ctx.route('**/src/config.js', (r) => r.fulfill({ body: cfg, contentType: 'text/javascript' }));
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('dialog', (d) => d.accept());
+  await p.addInitScript(() => { localStorage.setItem('work-day', '1'); localStorage.setItem('work-news-seen', '9999'); localStorage.setItem('work-tower-me', JSON.stringify({ name: '엘리', color: '#ffb547', gender: 'f' }));
+    localStorage.setItem('work-wallet', JSON.stringify({ 엘리: { cash: 900000, unpaid: 55000, day: '2026-11-20', day_secs: 0, paid_month: '', savings: 0, sav_day: '2026-11-20', stocks: {} } })); });
+  await p.goto('http://127.0.0.1:8123/', { waitUntil: 'commit' });
+  await p.waitForFunction(() => window.__work && __work.mode === 'office', null, { timeout: 1500000 });
+  await p.waitForTimeout(2000);
+  const c0 = await p.evaluate(() => __work.money.cash());
+  console.log('cash after unpaid move', Math.round(c0), 'toast', await p.evaluate(() => document.getElementById('chatLog').innerText.split('\n').filter((l) => l.includes('급여')).join(' | ')));
+  await p.waitForTimeout(5000);
+  console.log('cash grows by daily pay', Math.round(await p.evaluate(() => __work.money.cash()) - c0), 'won in ~5s');
+  // 부티크 안에서 쇼윈도
+  await p.evaluate(() => { const w = __work; w.player.x = 20.2; w.player.z = -4; w.player.ry = -Math.PI / 2; w.cam.yaw = Math.PI / 2 + 0.05; w.cam.pitch = 0.18; w.cam.dist = 3.4; });
+  await p.waitForTimeout(2500); await p.screenshot({ path: S + '/b2_window.png' });
+  await p.evaluate(() => { const w = __work; w.player.x = 22.6; w.player.z = -4; }); await p.waitForTimeout(1500);
+  await p.keyboard.press('KeyE'); await p.waitForTimeout(600);
+  await p.click('#shopCats [data-c="wear"]'); await p.waitForTimeout(300);
+  await p.screenshot({ path: S + '/b2_ui.png' });
+  await p.click('[data-buy="tweed"]'); await p.waitForTimeout(300);
+  await p.click('#shopCats [data-c="bag"]'); await p.click('[data-buy="tote"]'); await p.waitForTimeout(300);
+  await p.click('#shopCats [data-c="all"]'); await p.click('[data-buy="muffler"]'); await p.waitForTimeout(300);
+  console.log('wear', await p.evaluate(() => JSON.stringify(__work.money.wear())));
+  await p.click('#shopModal [data-close]');
+  await p.evaluate(() => { const w = __work; w.player.ry = -Math.PI / 2; w.cam.yaw = -Math.PI / 2 + 0.5; w.cam.pitch = 0.15; w.cam.dist = 2.4; });
+  await p.waitForTimeout(2500); await p.screenshot({ path: S + '/b2_wear.png' });
+  console.log('errors', errs.join('|') || 'none'); await b.close();
+})();
