@@ -1,9 +1,9 @@
-// ⛄ 눈싸움장: 사옥 뒤쪽(북쪽) 정원. 들어가면 F 키(휴대폰은 ❄ 버튼)로 화면이 보는 쪽으로 눈덩이를 던짐.
+// ⛄ 눈싸움장: 사옥 뒤쪽(북쪽) 정원, 울타리로 둘러싸고 사옥 쪽 문으로만 드나듦. 안에 들어가면 F 키(휴대폰은 ❄ 버튼)로 화면이 보는 쪽으로 눈덩이를 던짐.
 // 던질 때만 알림 하나({t:'snow', k:'throw'})를 보내고, 눈덩이는 모든 화면이 똑같이 계산해서 날림 (서버 부담 적음).
-// 맞았는지는 '맞은 사람' 화면이 판단해서 {k:'hit'}를 보냄 → 던진 사람이 맞힘 +1 · 용돈.
+// 눈덩이는 울타리 밖으로 못 나가고, 안에 있는 사람만 맞음. 맞았는지는 '맞은 사람' 화면이 판단해서 {k:'hit'}를 보냄 → 던진 사람이 맞힘 +1 · 용돈.
 // 움직이는 꼬마 눈사람 과녁 3개(혼자서도 연습), 눈 벽 4개(숨기).
 import * as THREE from 'three';
-import { Kit, canvasTex, SNOW } from './building.js';
+import { Kit, canvasTex, SNOW, BOX } from './building.js';
 
 const SPEED = 14, UP = 2.0, G = 9.8, COOL = 0.55;   // 던지는 힘 · 위로 · 중력 · 다시 던지기까지(초)
 const REMOTE_DELAY = 0.3;                              // 다른 사람 캐릭터는 조금 늦게 그려지므로 그 사람 눈덩이도 그만큼 늦게
@@ -18,6 +18,7 @@ const SM = {
   coal: new THREE.MeshStandardMaterial({ color: 0x1b1b20, roughness: 0.6 }),
   carrot: new THREE.MeshStandardMaterial({ color: 0xf07a1f, roughness: 0.6 }),
   wood: new THREE.MeshStandardMaterial({ color: 0x7a5236, roughness: 0.8 }),
+  fence: new THREE.MeshStandardMaterial({ color: 0xa87c57, roughness: 0.8 }),
   scarf: new THREE.MeshStandardMaterial({ color: 0xd63a3a, roughness: 0.8 }),
   scarf2: new THREE.MeshStandardMaterial({ color: 0x2f7bd6, roughness: 0.8 }),
   ball: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, emissive: 0x30353c }),
@@ -36,7 +37,7 @@ export function createSnowField(colliders) {
     const t = i / 26, side = i % 4;
     const x = side < 2 ? x0 + (x1 - x0) * ((i * 0.37) % 1) : (side === 2 ? x0 : x1);
     const z = side < 2 ? (side === 0 ? z0 : z1) : z0 + (z1 - z0) * ((i * 0.53) % 1);
-    if (side === 1 && Math.abs(x - cx) < 2.2) continue; // 남쪽 가운데는 들어오는 길
+    if (side === 1 && Math.abs(x - cx) < 2.4) continue; // 남쪽 가운데는 들어오는 길
     k.ball(0.45 + 0.35 * ((t * 7.3) % 1), x, 0, z, i % 3 ? SM.snow : SM.shade, 0.38);
   }
   // 눈 벽 (숨을 곳) + 옆에 눈덩이 무더기
@@ -45,18 +46,31 @@ export function createSnowField(colliders) {
     for (let j = 0; j < 5; j++) k.ball(0.11, x + (j % 3 - 1) * 0.2 + 0.9, 0.08 + (j > 2 ? 0.16 : 0), z + (z > cz ? 0.55 : -0.55) + (j > 2 ? 0 : 0.05), SM.snow);
     colliders.push({ x1: x - WALL.w / 2, z1: z - WALL.d / 2, x2: x + WALL.w / 2, z2: z + WALL.d / 2, tall: false, top: WALL.h, fixedTop: true });
   }
-  // 안내판
-  const sx = -6.2, sz = z1 + 0.4;
-  k.box(0.1, 1.5, 0.1, sx - 0.75, 0, sz, SM.wood); k.box(0.1, 1.5, 0.1, sx + 0.75, 0, sz, SM.wood);
+  // 울타리: 둘레를 막고, 사옥 쪽(남쪽) 가운데만 문으로 열어 둠 → 문으로만 드나듦
+  const F = SM.fence, FH = 1.05, GATE = 1.4;
+  const rail = (ax, az, bx, bz) => {
+    const len = Math.hypot(bx - ax, bz - az), mx = (ax + bx) / 2, mz = (az + bz) / 2, ry = Math.atan2(bx - ax, bz - az) + Math.PI / 2;
+    for (const y of [0.35, 0.8]) k.add(BOX, F, mx, y, mz, ry, len, 0.08, 0.05);
+    for (let t = 0; t <= len + 0.01; t += 1.15) { const u = len ? t / len : 0; k.box(0.11, FH, 0.11, ax + (bx - ax) * u, 0, az + (bz - az) * u, F); k.ball(0.075, ax + (bx - ax) * u, FH + 0.02, az + (bz - az) * u, SM.snow, 0.7); }
+    const T = 0.25; // 부딪힘
+    colliders.push({ x1: Math.min(ax, bx) - T, z1: Math.min(az, bz) - T, x2: Math.max(ax, bx) + T, z2: Math.max(az, bz) + T, tall: true });
+  };
+  rail(x0, z0, x1, z0); rail(x0, z0, x0, z1); rail(x1, z0, x1, z1);
+  rail(x0, z1, cx - GATE, z1); rail(cx + GATE, z1, x1, z1);
+  // 문 아치 + 간판
+  for (const e of [-1, 1]) { k.box(0.18, 2.5, 0.18, cx + e * (GATE + 0.05), 0, z1, SM.wood); k.ball(0.14, cx + e * (GATE + 0.05), 2.55, z1, SM.snow, 0.6); }
+  k.box(GATE * 2 + 0.5, 0.16, 0.22, cx, 2.38, z1, SM.wood);
   k.flush(group);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.75), new THREE.MeshStandardMaterial({ roughness: 0.7, map: canvasTex(512, 214, (ctx, w, h) => {
-    ctx.fillStyle = '#7a5236'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = '#f6efe2'; ctx.fillRect(10, 10, w - 20, h - 20);
+  const signMat = new THREE.MeshStandardMaterial({ roughness: 0.7, map: canvasTex(512, 160, (ctx, w, h) => {
+    ctx.fillStyle = '#7a5236'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = '#f6efe2'; ctx.fillRect(9, 9, w - 18, h - 18);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#23324a';
-    ctx.font = '800 64px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('⛄ 눈싸움장', w / 2, 78);
-    ctx.font = '600 30px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillStyle = '#5b6578'; ctx.fillText('들어가서 F 키 · ❄ 버튼으로 던지기', w / 2, 150);
-  }) }));
-  sign.position.set(sx, 1.15, sz + 0.06); group.add(sign);
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.75), SM.wood); back.position.set(sx, 1.15, sz + 0.04); back.rotation.y = Math.PI; group.add(back);
+    ctx.font = '800 62px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('⛄ 눈싸움장', w / 2, 62);
+    ctx.font = '600 27px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillStyle = '#5b6578'; ctx.fillText('안에서만 던질 수 있어요 · F 키 / ❄ 버튼', w / 2, 122);
+  }) });
+  for (const e of [1, -1]) { // 바깥(남쪽)과 안쪽 양면
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.72), signMat);
+    sign.position.set(cx, 1.98, z1 + e * 0.13); if (e < 0) sign.rotation.y = Math.PI; group.add(sign);
+  }
 
   // 꼬마 눈사람 과녁 (모두 같은 시계로 움직여서 누구 화면에서나 같은 자리)
   const targets = TARGETS.map((t, i) => {
@@ -188,12 +202,10 @@ export function createSnowFight(api) {
       for (let s = 0; s < n && !gone; s++) {
         b.t += h; b.vy -= G * h;
         b.x += b.vx * h; b.y += b.vy * h; b.z += b.vz * h;
-        if (b.y <= 0.04 || b.t > 2.5 || Math.abs(b.x) > 31 || Math.abs(b.z) > 31) { kill(b); gone = true; break; }
+        if (b.y <= 0.04 || b.t > 2.5 || !inSnow(0, b.x, b.z)) { kill(b); gone = true; break; } // 울타리에 막힘
         // 눈 벽
         for (const [wx, wz] of WALLS) if (Math.abs(b.x - wx) < WALL.w / 2 + 0.05 && Math.abs(b.z - wz) < WALL.d / 2 + 0.05 && b.y < WALL.h + 0.05) { kill(b); gone = true; break; }
         if (gone) break;
-        // 사옥 벽
-        if (Math.abs(b.x) < 10 && Math.abs(b.z) < 6.5) { kill(b); gone = true; break; }
         // 눈사람 과녁
         for (const t of field.targets) {
           const tp = t.g.position;
@@ -206,7 +218,7 @@ export function createSnowFight(api) {
         if (gone) break;
         // 나: 내가 맞았는지는 내 화면이 판단
         const av = api.avatar();
-        if (b.by !== me.id && p.floor === 0 && av && Math.hypot(b.x - p.x, b.z - p.z) < 0.34 && b.y > _feet(av) && b.y < _feet(av) + 1.12) {
+        if (b.by !== me.id && inField && av && Math.hypot(b.x - p.x, b.z - p.z) < 0.34 && b.y > _feet(av) && b.y < _feet(av) + 1.12) {
           kill(b, false); gone = true; gotHit++;
           api.send({ t: 'snow', k: 'hit', bid: b.id, by: b.by, id: me.id, name: me.name });
           av.hurt(api.now()); puff(p.x, _feet(av) + 0.8, p.z, 1.1); api.thump();
@@ -217,7 +229,7 @@ export function createSnowFight(api) {
         }
         // 다른 사람: 내 화면에서는 부딪히면 터지는 모습만 (점수는 맞은 사람 화면이 정함)
         for (const [id, q] of peers) {
-          if (id === b.by || q.floor !== 0) continue;
+          if (id === b.by || !inSnow(q.floor, q.x, q.z)) continue;
           if (Math.hypot(b.x - q.x, b.z - q.z) < 0.3 && b.y > _feet(q.av) && b.y < _feet(q.av) + 1.1) { kill(b); gone = true; break; }
         }
       }
