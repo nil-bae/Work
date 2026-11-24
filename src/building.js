@@ -28,12 +28,14 @@ export const BOOTHS = Array.from({ length: 5 }, (_, i) => {
 });
 // 1층 동쪽 옆문 (정원 동쪽 WORK BOUTIQUE로 바로 나감): z 범위
 export const EAST_DOOR = [-2.9, -1.3];
+export const SNOW = { x0: -9.5, x1: 9.5, z0: -21.5, z1: -9.5 }; // ⛄ 눈싸움장 (사옥 뒤쪽 정원, snow.js)
 export const SPAWN = { floor: 0, x: 0, z: 9.4, yaw: 0 }; // 회사 정문 바로 앞(바깥)에서 문을 바라봄
 
 export const ZONES = {
-  garden: '1F 정원', f1: '1F 로비·카페', f2: '2F 업무 공간', f3: '3F 회의실 홀', meetA: '3F 회의실 A', meetB: '3F 회의실 B', f4: '4F 라운지', arcade: '4F 오락존', roof: '옥상 테라스',
+  garden: '1F 정원', f1: '1F 로비·카페', f2: '2F 업무 공간', f3: '3F 회의실 홀', meetA: '3F 회의실 A', meetB: '3F 회의실 B', f4: '4F 라운지', arcade: '4F 오락존', roof: '옥상 테라스', snow: '⛄ 눈싸움장',
 };
 export function zoneAt(f, x, z) {
+  if (f === 0 && x > SNOW.x0 && x < SNOW.x1 && z > SNOW.z0 && z < SNOW.z1) return 'snow';
   if (f === 0 && (Math.abs(x) > HX || Math.abs(z) > HZ)) return 'garden';
   if (f === 2 && z < -2) return x < 1.5 ? 'meetA' : 'meetB';
   if (f === 3 && x > 7.6 && z < 2.6) return 'arcade';

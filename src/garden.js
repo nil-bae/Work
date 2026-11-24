@@ -56,11 +56,7 @@ export function createGarden(uniforms) {
   // 분수 광장 (둥근 포장)
   k.cyl(9, 0.06, FOUNTAIN.x, -0.01, FOUNTAIN.z, path, 48);
   k.cyl(9.25, 0.04, FOUNTAIN.x, -0.02, FOUNTAIN.z, stone, 48);
-  // 북쪽 정원 디딤돌
-  for (let i = 0; i < 9; i++) {
-    const x = -8 + i * 2;
-    k.cyl(0.45, 0.05, x, 0.0, -HZ - 5 + Math.sin(i * 1.3) * 0.6, stone, 10);
-  }
+  // (북쪽 정원 디딤돌은 ⛄ 눈싸움장 눈 바닥에 덮여서 뺌 — snow.js)
 
   // ---------- 분수 ----------
   const fx = FOUNTAIN.x, fz = FOUNTAIN.z;

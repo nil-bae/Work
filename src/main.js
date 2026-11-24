@@ -13,6 +13,7 @@ import { createMoney } from './money.js';
 import { unseenNews, markNewsSeen } from './news.js';
 import { XMAS, createPlazaTree, createSleigh, SLEIGH } from './xmas.js';
 import { createShop, createShopUI, SHOP } from './shop.js';
+import { createSnowField, createSnowFight } from './snow.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
@@ -218,6 +219,18 @@ $('workChip').onclick = () => money.openWallet();
 // 👜 WORK BOUTIQUE (1층 정원 동쪽): 아이템 사서 착용
 const shop = createShop(bld.floors[0].colliders);
 scene.add(shop.group);
+// ⛄ 눈싸움장 (사옥 뒤쪽 정원)
+const snowField = createSnowField(bld.floors[0].colliders);
+scene.add(snowField.group);
+const snowFight = createSnowFight({
+  scene, field: snowField, me, peers, $, isTouch,
+  player: () => player, avatar: () => myAvatar, now: () => now, camYaw: () => cam.yaw,
+  active: () => !!myAvatar && mode === 'office', busy: () => busy() || player.sit,
+  send: (e) => net?.sendEvent(e), sendNow: () => sendState(true), earn: (n) => money.earn(n),
+  toast: (t) => toast(t, null), sys: (t) => sysMessage(t),
+  thump: () => playThump(0.5), whoosh: () => playBeep(520, 0.05), ding: () => playBeep(1180, 0.1),
+});
+$('btnSnow').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); snowFight.throw(); });
 const atShop = () => mode === 'office' && player.floor === 0 && shop.inside(player.x, player.z);
 const shopUI = createShopUI({ $, money, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => playBeep(880, 0.15), atShop, changed: () => applyWear() });
 function applyWear() { me.acc = Object.values(money.wear()); myAvatar?.setAcc(me.acc); sendState(true); }
@@ -426,7 +439,7 @@ function enter() {
   placeAvatar(myAvatar, player);
   me.jt = Date.now();
   net = connect(me, {
-    onState, onChat: receiveChat, onLeave: removePeer, onSync: () => sendState(true), onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); },
+    onState, onChat: receiveChat, onLeave: removePeer, onSync: () => sendState(true), onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); snowFight.onEvent(e); },
     onStatus(text, online) { $('netText').textContent = text; $('netDot').classList.toggle('on', online); },
   });
   sysMessage(returning
@@ -459,6 +472,7 @@ addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (e.code === 'Enter') { e.preventDefault(); setChatOpen(true); $('chatInput').focus(); }
   if (e.code === 'KeyE') interact();
+  if (e.code === 'KeyF' && snowFight.inField) { e.preventDefault(); if (!e.repeat) snowFight.throw(); }
   if (e.code === 'Space') { e.preventDefault(); doJump(); }
   if (e.code === 'Escape') closeModals();
 });
@@ -645,6 +659,7 @@ function updatePlayer(dt) {
   else if (what === 'npc') { pr.textContent = isTouch ? '💬 비서에게 말 걸기 (누르기)' : 'E  💬 비서에게 말 걸기'; pr.hidden = false; }
   else if (what === 'notice') { pr.textContent = isTouch ? '공지판 보기 (누르기)' : 'E  공지판 보기'; pr.hidden = false; }
   else if (what === 'elev') { pr.textContent = isTouch ? '엘리베이터 타기 (누르기)' : 'E  엘리베이터 타기'; pr.hidden = false; }
+  else if (snowFight.inField) { pr.textContent = isTouch ? '❄ 버튼: 화면이 보는 쪽으로 눈 던지기' : 'F  ❄ 눈 던지기 (화면이 보는 쪽으로)'; pr.hidden = false; }
   else pr.hidden = true;
 }
 
@@ -1547,6 +1562,7 @@ function frame() {
   if (game.on) updateGame(dt);
   duel.update(dt);
   updateSparks(dt);
+  snowFight.update(dt);
   duelHost.root.visible = !(mode === 'office' && player.floor !== ARENA.floor); duelHost.animate(dt, 0, now);
   if (duelBot.root.visible) duelBot.animate(dt, 0, now);
   if (pingMark.visible) { pingMark.scale.setScalar(Math.max(1, pingMark.scale.x - dt * 3)); pingMark.rotation.z += dt * 2; }
@@ -1586,5 +1602,5 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+window.__work = { snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;
