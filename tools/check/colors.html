@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "../../vendor/three/three.module.js", "three/addons/": "../../vendor/three/addons/" } }</script>
+<style>body{margin:0;background:#cfd6e0}</style></head><body>
+<script type="module">
+// 상의 색 확인용: 줄 = 무채색 4가지(화이트 · 그레이 · 차콜 · 블랙), 칸 = 옷 종류 (여 · 남 번갈아)
+import * as THREE from 'three';
+import { Avatar, OUTFITS } from '../../src/avatar.js';
+const C = ['#e8e8e8', '#a3a8b0', '#5b5f68', '#26272c'];
+const W = 1400, H = 900, r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping;
+const s = new THREE.Scene(); s.background = new THREE.Color(0xcfd6e0);
+s.add(new THREE.HemisphereLight(0xdfe6ff, 0x5a5048, 2.2)); const k = new THREE.DirectionalLight(0xffffff, 2); k.position.set(2, 3, 4); s.add(k);
+const cam = new THREE.PerspectiveCamera(22, W / H, 0.1, 50); cam.position.set(0, 3.2, 13); cam.lookAt(0, 0.3, 0);
+const n = OUTFITS.length;
+C.forEach((c, row) => { for (let i = 0; i < n; i++) {
+  const g = i % 2 ? 'm' : 'f', a = new Avatar('', c, g, `${g === 'f' ? 1 : 0}0${i}${g === 'f' ? 1 : 0}0`); a.label.visible = false;
+  a.root.position.set((i - (n - 1) / 2) * 0.95, 1.9 - row * 1.25, 0); s.add(a.root);
+} });
+r.render(s, cam); window.done = true;
+</script></body></html>

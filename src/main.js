@@ -1034,7 +1034,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 function sysMessage(text) { addLine(`<span class="sys">${esc(text)}</span>`); }
 function showChat(m) {
   const tag = m.scope !== 'all' ? `<span class="tag">[${esc(ZONES[m.scope] || m.scope)}]</span>` : '';
-  const color = /^#[0-9a-f]{6}$/i.test(m.color) ? m.color : '#fff';
+  let color = /^#[0-9a-f]{6}$/i.test(m.color) ? m.color : '#fff';
+  { const n = parseInt(color.slice(1), 16), l = 0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255); if (l < 110) color = '#c9ced8'; } // 검정 · 차콜 옷이면 어두운 채팅창에서 이름이 안 보여서 밝은 회색으로
   addLine(`${tag}<span class="who" style="color:${color}">${esc(m.name)}</span>${esc(m.text)}`);
 }
 function receiveChat(m) {

@@ -20,4 +20,4 @@ export const CONFIG = {
   ],
 };
 
-export const AVATAR_COLORS = ['#4f8cff', '#ff6b6b', '#ffb547', '#3ecf8e', '#b47cff', '#ff7ac6', '#2ec4d6', '#e8e8e8'];
+export const AVATAR_COLORS = ['#4f8cff', '#ff6b6b', '#ffb547', '#3ecf8e', '#b47cff', '#ff7ac6', '#2ec4d6', '#e8e8e8', '#a3a8b0', '#5b5f68', '#26272c']; // 끝의 넷은 무채색(화이트 · 그레이 · 차콜 · 블랙)

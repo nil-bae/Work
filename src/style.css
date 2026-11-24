@@ -30,7 +30,7 @@ input, textarea { font: inherit; color: var(--fg); }
 .field input { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.06); outline: none; font-size: 16px; }
 .field input:focus { border-color: var(--gold); }
 .colors { display: flex; gap: 10px; flex-wrap: wrap; }
-.colors button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; outline: 2px solid transparent; }
+.colors button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,.28); outline: 2px solid transparent; }
 .colors button.on { outline-color: var(--gold); outline-offset: 2px; }
 .colors.small button { width: 24px; height: 24px; }
 .colors .auto { background: conic-gradient(#c9b59a 0 25%, #353c4a 0 50%, #c9b59a 0 75%, #353c4a 0) !important; }
@@ -96,7 +96,7 @@ input, textarea { font: inherit; color: var(--fg); }
 #noticeList p { margin: 0; color: #c3cad8; font-size: 14px; white-space: pre-wrap; }
 #noticeList small { color: var(--muted); }
 #peopleList li { display: flex; align-items: center; gap: 10px; padding: 8px 4px; }
-#peopleList i { width: 14px; height: 14px; border-radius: 50%; }
+#peopleList i { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,255,255,.55); }
 #peopleList small { margin-left: auto; color: var(--muted); }
 #noticeForm { display: grid; gap: 8px; }
 #noticeForm input, #noticeForm textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.06); outline: none; resize: vertical; font-size: 15px; }
