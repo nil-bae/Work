@@ -295,7 +295,9 @@ const AM = {
   tan: new THREE.MeshStandardMaterial({ color: 0xd8b48a, roughness: 0.55 }),
   champagne: new THREE.MeshStandardMaterial({ color: 0xf0d9a8, roughness: 0.2, metalness: 0.7, emissive: 0x2a1e08 }),
   // 🎄 크리스마스 출석 한정판
-  antler: new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.7 }),
+  antler: new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.7 }),
+  felt: new THREE.MeshStandardMaterial({ color: 0xa8713f, roughness: 1 }),
+  earPink: new THREE.MeshStandardMaterial({ color: 0xf2b3b8, roughness: 0.9 }),
   holly: new THREE.MeshStandardMaterial({ color: 0x1f7a3e, roughness: 0.5 }),
   berry: new THREE.MeshStandardMaterial({ color: 0xe0142a, roughness: 0.25, emissive: 0x300006 }),
   knitR: new THREE.MeshStandardMaterial({ color: 0xc41e2e, roughness: 0.95 }),
@@ -483,18 +485,25 @@ export function makeAcc(id) {
       break;
     }
     // ----- 🎄 크리스마스 출석 한정판 (부티크에서 안 팖, advent.js) -----
-    case 'rudolph': { // 루돌프 뿔 머리띠 + 방울 + 호랑가시
-      add(new THREE.TorusGeometry(0.27, 0.016, 6, 32, Math.PI), AM.antler, 0, H0 + 0.0, 0.0, 0, 0, 0, 1.04, 1.12, 1); // 귀에서 귀로 넘어가는 띠
+    case 'rudolph': { // 루돌프 머리띠: 통통한 펠트 사슴뿔 + 작은 사슴 귀 + 방울 + 호랑가시
+      add(new THREE.TorusGeometry(0.27, 0.014, 6, 32, Math.PI), AM.antler, 0, H0 + 0.0, 0.0, 0, 0, 0, 1.04, 1.12, 1); // 귀에서 귀로 넘어가는 띠
       for (const e of [-1, 1]) {
-        const b = [e * 0.13, H0 + 0.2, 0.0], t = [e * 0.26, H0 + 0.47, -0.03];
-        rod(g, b, t, 0.03, AM.antler, 0.018);
-        rod(g, [e * 0.17, H0 + 0.29, -0.01], [e * 0.11, H0 + 0.42, 0.0], 0.02, AM.antler, 0.012);
-        rod(g, [e * 0.22, H0 + 0.38, -0.02], [e * 0.34, H0 + 0.45, -0.02], 0.018, AM.antler, 0.011);
-        rod(g, [e * 0.245, H0 + 0.43, -0.03], [e * 0.24, H0 + 0.53, -0.04], 0.016, AM.antler, 0.01);
-        add(new THREE.SphereGeometry(0.032, 12, 10), AM.gold, e * 0.255, H0 - 0.04, 0.06);
+        const P = (x, y, z = 0) => [e * x, H0 + y, z];
+        const joint = (p, r) => add(new THREE.SphereGeometry(r, 12, 10), AM.felt, ...p);
+        // 큰 줄기 (살짝 바깥으로 휘며 위로)
+        rod(g, P(0.12, 0.215), P(0.15, 0.33), 0.034, AM.felt, 0.031); joint(P(0.15, 0.33), 0.031);
+        rod(g, P(0.15, 0.33), P(0.2, 0.45), 0.031, AM.felt, 0.027); joint(P(0.2, 0.45), 0.027);
+        // 안쪽 가지 · 바깥 가지 (끝은 동글게)
+        rod(g, P(0.15, 0.31), P(0.085, 0.4), 0.024, AM.felt, 0.022); joint(P(0.085, 0.4), 0.022);
+        rod(g, P(0.18, 0.4), P(0.28, 0.44), 0.023, AM.felt, 0.021); joint(P(0.28, 0.44), 0.021);
+        rod(g, P(0.2, 0.45), P(0.16, 0.53), 0.022, AM.felt, 0.02); joint(P(0.16, 0.53), 0.02);
+        // 사슴 귀 (갈색 + 분홍 안쪽)
+        add(new THREE.SphereGeometry(0.05, 14, 10), AM.felt, e * 0.245, H0 + 0.19, 0.0, 0, 0, e * -0.95, 0.75, 1.5, 0.45);
+        add(new THREE.SphereGeometry(0.034, 12, 8), AM.earPink, e * 0.247, H0 + 0.19, 0.016, 0, 0, e * -0.95, 0.7, 1.4, 0.3);
+        add(new THREE.SphereGeometry(0.024, 12, 10), AM.gold, e * 0.262, H0 + 0.1, 0.05); // 방울 (귀 아래)
       }
-      for (const [x, rz] of [[0.09, 0.5], [0.05, -0.4]]) add(new THREE.SphereGeometry(0.04, 10, 6), AM.holly, x, H0 + 0.245, 0.11, 0.5, 0, rz, 1.6, 0.4, 0.8);
-      for (const [x, y] of [[0.075, 0.26], [0.095, 0.24], [0.06, 0.235]]) add(new THREE.SphereGeometry(0.018, 8, 6), AM.berry, x, H0 + y, 0.14);
+      for (const [x, rz] of [[0.1, 0.5], [0.055, -0.45]]) add(new THREE.SphereGeometry(0.04, 10, 6), AM.holly, x, H0 + 0.245, 0.11, 0.5, 0, rz, 1.6, 0.4, 0.8);
+      for (const [x, y] of [[0.078, 0.262], [0.098, 0.24], [0.062, 0.236]]) add(new THREE.SphereGeometry(0.018, 8, 6), AM.berry, x, H0 + y, 0.14);
       break;
     }
     case 'xknit': // 홀리데이 니트 목도리 (빨강 · 초록 · 흰 줄 + 방울 술)

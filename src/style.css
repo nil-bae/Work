@@ -412,3 +412,14 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 @keyframes xmasStamp { 0% { transform: scale(2.6) rotate(-30deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: scale(1) rotate(-12deg); opacity: 1; } }
 @keyframes xmasPop { 0% { transform: scale(.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .shop-grid li .limited, #shopGrid button.limited { background: linear-gradient(135deg, #a3122a, #1f6b3c); color: #fff; border: 0; }
+
+/* 👤 내 캐릭터 → 🎒 아이템 (바로 착용 · 벗기) */
+.item-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.item-pick button { display: grid; justify-items: center; gap: 2px; padding: 9px 4px 8px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.05); font-size: 12px; line-height: 1.25; color: inherit; }
+.item-pick button i { font-style: normal; font-size: 24px; }
+.item-pick button small { font-size: 10px; opacity: .6; }
+.item-pick button.on { border-color: var(--gold); background: rgba(232,211,160,.16); color: var(--gold); font-weight: 700; }
+.item-pick button.on small { opacity: .9; }
+.item-pick button.on::after { content: '✔ 착용 중'; font-size: 10px; }
+.item-pick .xm { border-color: rgba(214,40,60,.45); }
+.item-pick p { grid-column: 1 / -1; margin: 0; font-size: 13px; opacity: .7; line-height: 1.5; }

@@ -12,11 +12,11 @@ import { createRequests } from './requests.js';
 import { createMoney } from './money.js';
 import { unseenNews, markNewsSeen } from './news.js';
 import { XMAS, createPlazaTree, createSleigh, SLEIGH } from './xmas.js';
-import { createShop, createShopUI, SHOP } from './shop.js';
+import { createShop, createShopUI, SHOP, ITEMS } from './shop.js';
 import { createSnowField, createSnowFight } from './snow.js';
 import { createXmas } from './advent.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
-import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, parseLook, lookKey } from './avatar.js';
+import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, ACC_SLOTS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
 import { listNotices, addNotice, drawNoticeBoard } from './notices.js';
 
@@ -237,7 +237,7 @@ const shopUI = createShopUI({ $, money, openModal: (id) => openModal(id), sys: (
 // 🎄 크리스마스 출석 (들어올 때 하루 한 번 도장 → 한정판 선물)
 const advent = createXmas({ $, money, me, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => { playBeep(988, 0.12); setTimeout(() => playBeep(1319, 0.18), 130); }, changed: () => applyWear() });
 function adventCheckIn() { if (!$('newsModal').hidden) { setTimeout(adventCheckIn, 500); return; } if (advent.checkIn()) advent.open(); }
-function applyWear() { me.acc = Object.values(money.wear()); myAvatar?.setAcc(me.acc); sendState(true); }
+function applyWear() { me.acc = Object.values(money.wear()); myAvatar?.setAcc(me.acc); pv.av?.setAcc(me.acc); sendState(true); }
 let clerkGreetAt = -99;
 // 3층 투자 상담원 (NPC)
 const advisor = new Avatar('💹 투자 상담원', '#2d3b55', 'f', '21100');
@@ -331,8 +331,20 @@ function syncLookUI() {
 }
 document.querySelectorAll('#lookTabs button').forEach((b) => (b.onclick = () => {
   document.querySelectorAll('#lookTabs button').forEach((x) => x.classList.toggle('on', x === b));
-  $('lookTop').hidden = b.dataset.t !== 'top'; $('lookHair').hidden = b.dataset.t !== 'hair';
+  $('lookTop').hidden = b.dataset.t !== 'top'; $('lookHair').hidden = b.dataset.t !== 'hair'; $('lookItems').hidden = b.dataset.t !== 'items';
+  if (b.dataset.t === 'items') renderItemPick();
 }));
+// 🎒 내 아이템: 캐릭터 창에서 바로 착용 · 벗기 (같은 부위는 하나만, 저장 버튼 없이 바로 적용)
+function renderItemPick() {
+  const owned = money.ready ? money.items() : [], wear = money.ready ? money.wear() : {};
+  const list = ITEMS.filter((it) => owned.includes(it.id));
+  $('itemPick').innerHTML = list.length ? list.map((it) => `<button type="button" data-acc="${it.id}" class="${wear[it.slot] === it.id ? 'on' : ''} ${it.limited ? 'xm' : ''}"><i>${it.icon}</i>${it.name}<small>${ACC_SLOTS[it.slot]}</small></button>`).join('')
+    : '<p>아직 아이템이 없어요. 1층 <b>WORK BOUTIQUE</b>에서 사거나 <b>🎄 출석 선물</b>로 받을 수 있어요.</p>';
+  $('itemPick').querySelectorAll('[data-acc]').forEach((b) => (b.onclick = () => {
+    const it = ITEMS.find((x) => x.id === b.dataset.acc);
+    money.setWear(it.slot, money.wear()[it.slot] === it.id ? null : it.id); applyWear(); renderItemPick();
+  }));
+}
 syncLookUI();
 
 // 시작 화면 캐릭터 미리보기 (작은 화면, 시작 화면에서만 그림)
@@ -350,7 +362,7 @@ const pv = { renderer: null, scene: new THREE.Scene(), cam: new THREE.Perspectiv
 function updatePreview() {
   if (pv.av) { pv.av.setLook(me.color, me.gender, me.look); return; }
   pv.av = new Avatar('', me.color, me.gender, me.look);
-  pv.av.label.visible = false;
+  pv.av.label.visible = false; pv.av.setAcc(me.acc || []);
   pv.scene.add(pv.av.root);
 }
 updatePreview();
@@ -367,6 +379,7 @@ function openProfile() {
   $('nameInput').value = me.name;
   $('enterBtn').textContent = '저장하기';
   $('introCancel').hidden = false;
+  $('lookItemsTab').hidden = !money.ready; pv.av?.setAcc(me.acc || []);
   $('intro').classList.add('editing');
   $('intro').hidden = false;
 }
