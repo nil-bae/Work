@@ -229,5 +229,9 @@ export function createMoney(api) {
   function spend(n) { if (!w || n <= 0 || w.cash < n) return false; w.cash -= n; save(); chip(); return true; }
   function earn(n) { if (!w || n <= 0) return; w.cash += n; save(); chip(); }
   function setWear(slot, id) { if (!w) return; const v = { ...wear() }; if (id) v[slot] = id; else delete v[slot]; w.stocks.__wear = v; save(); }
-  return { items, wear, buy, setWear, spend, earn, cash: () => (w ? w.cash : 0), load, greeting, openWallet, openInvest, save, get ready() { return !!w; }, get mode() { return useLocal ? 'local' : 'server'; } };
+  // 🎄 크리스마스 출석 (stocks 안에 __xmas = ['2026-11-24', ...]) · 출석 선물은 돈 없이 지급
+  const xmasDays = () => (w?.stocks?.__xmas || []);
+  function stampDay(day) { if (!w || xmasDays().includes(day)) return false; w.stocks.__xmas = [...xmasDays(), day]; save(); return true; }
+  function grant(id) { if (!w || items().includes(id)) return false; w.stocks.__items = [...items(), id]; save(); return true; }
+  return { xmasDays, stampDay, grant, today, items, wear, buy, setWear, spend, earn, cash: () => (w ? w.cash : 0), load, greeting, openWallet, openInvest, save, get ready() { return !!w; }, get mode() { return useLocal ? 'local' : 'server'; } };
 }

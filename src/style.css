@@ -361,3 +361,54 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 .counter-box { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .counter-box small { display: block; color: var(--muted); margin-bottom: 6px; }
 #dAccept:disabled, #dCAccept:disabled { opacity: .4; }
+
+/* 🎄 크리스마스 출석 */
+.actions button.xmas-btn { background: linear-gradient(135deg, rgba(178,24,44,.92), rgba(24,96,58,.92)); border-color: rgba(255,226,150,.55); color: #fff; }
+.actions button.xmas-btn b { color: #ffe39a; }
+.xmas-card { width: min(600px, 100%); padding: 0; background: #0f1a15; border: 1px solid rgba(255,214,120,.35); overflow-x: hidden; }
+.xmas-hero { position: relative; padding: 22px 20px 18px; color: #fff; text-align: center;
+  background: radial-gradient(circle at 12% 18%, rgba(255,255,255,.18) 0 2px, transparent 3px), radial-gradient(circle at 78% 30%, rgba(255,255,255,.22) 0 2px, transparent 3px), radial-gradient(circle at 40% 70%, rgba(255,255,255,.15) 0 1.5px, transparent 2.5px), radial-gradient(circle at 90% 80%, rgba(255,255,255,.18) 0 2px, transparent 3px),
+    linear-gradient(160deg, #a3122a 0%, #6d0f22 45%, #123d2b 100%); }
+.xmas-hero .close { position: absolute; top: 12px; right: 12px; }
+.xmas-hero small { letter-spacing: .16em; font-size: 11px; color: #ffd98a; font-weight: 700; }
+.xmas-hero h2 { margin: 6px 0 6px; font-size: 24px; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.xmas-hero p { margin: 0; font-size: 13px; line-height: 1.55; color: #f6e9e1; }
+.xmas-hero p b { color: #ffe39a; }
+.xmas-stat { display: flex; align-items: center; gap: 14px; margin: 16px 0 14px; padding: 12px 14px; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,227,154,.3); text-align: left; }
+.xmas-stat div { flex: none; display: flex; align-items: baseline; gap: 3px; }
+.xmas-stat div b { font-size: 40px; line-height: 1; color: #ffe39a; font-weight: 900; }
+.xmas-stat div span { font-size: 13px; color: #ffe39a; }
+.xmas-stat p small { color: #d9c7bd; }
+.xmas-bar { position: relative; height: 10px; margin: 18px 14px 26px; border-radius: 99px; background: rgba(0,0,0,.35); }
+.xmas-bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: linear-gradient(90deg, #ffe39a, #ffb547); box-shadow: 0 0 12px rgba(255,210,110,.6); }
+.xmas-bar em { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%; display: grid; place-content: center; font-style: normal; font-size: 15px; background: #2a2224; border: 2px solid rgba(255,255,255,.25); filter: grayscale(1); opacity: .7; }
+.xmas-bar em small { position: absolute; top: 31px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 0; color: #d9c7bd; font-weight: 700; }
+.xmas-bar em.got { filter: none; opacity: 1; background: #b3172c; border-color: #ffe39a; box-shadow: 0 0 10px rgba(255,210,110,.7); }
+.xmas-fresh { display: flex; gap: 14px; align-items: center; margin: 14px 16px 0; padding: 12px; border-radius: 16px; background: linear-gradient(135deg, rgba(255,214,120,.22), rgba(255,214,120,.06)); border: 1px solid rgba(255,214,120,.6); animation: xmasPop .6s cubic-bezier(.2,1.6,.4,1); }
+.xmas-fresh img { width: 96px; height: 96px; border-radius: 12px; background: radial-gradient(circle, #2b4a3a, #12261c); }
+.xmas-fresh div { display: grid; gap: 3px; }
+.xmas-fresh small { color: #ffd98a; font-weight: 700; } .xmas-fresh b { font-size: 18px; color: #fff; } .xmas-fresh span { font-size: 12px; color: #cbbfb5; }
+.xmas-h { margin: 18px 16px 8px; font-size: 15px; color: #ffe39a; }
+.xmas-gifts { list-style: none; margin: 0; padding: 0 16px 4px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.xmas-gifts li { position: relative; display: grid; gap: 4px; padding: 8px 8px 10px; border-radius: 14px; background: #17241d; border: 1px solid rgba(255,255,255,.08); text-align: center; }
+.xmas-gifts li img { width: 100%; aspect-ratio: 1; border-radius: 10px; background: radial-gradient(circle at 50% 40%, #2c4a3b, #10201a); filter: saturate(.55) brightness(.78); }
+.xmas-gifts li.got img { filter: none; }
+.xmas-gifts li.got { border-color: rgba(255,214,120,.55); box-shadow: 0 0 0 1px rgba(255,214,120,.15), 0 6px 18px rgba(0,0,0,.3); }
+.xmas-gifts li.star { grid-column: 1 / -1; grid-template-columns: 120px 1fr; text-align: left; align-items: center; background: linear-gradient(135deg, #2a2410, #17241d); border-color: rgba(255,214,120,.45); }
+.xmas-gifts li.star img { grid-row: span 3; }
+.xmas-gifts li small { font-size: 11px; color: #ffd98a; font-weight: 700; } .xmas-gifts li b { font-size: 14px; color: #fff; }
+.xmas-gifts .lock { font-size: 12px; color: #a99c95; padding: 7px 0; }
+.xmas-card [data-wear] { padding: 8px 12px; border-radius: 10px; border: 0; font-weight: 800; background: linear-gradient(135deg, #ffe39a, #e8b04a); color: #3a1a08; }
+.xmas-card [data-wear].on { background: #1f6b3c; color: #fff; }
+.xmas-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 0 16px 20px; }
+.xmas-cal i { font-style: normal; text-align: center; font-size: 11px; color: #8fa397; }
+.xmas-cal span { position: relative; aspect-ratio: 1; display: grid; place-content: center; border-radius: 10px; background: #17241d; color: #c9d6cd; font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,.06); }
+.xmas-cal span.future { opacity: .55; } .xmas-cal span.miss { opacity: .35; }
+.xmas-cal span.today { border-color: #ffe39a; box-shadow: 0 0 0 1px #ffe39a; }
+.xmas-cal span.xday { background: linear-gradient(135deg, #3a2a10, #17241d); border-color: rgba(255,214,120,.5); }
+.xmas-cal span em { position: absolute; inset: 12%; display: grid; place-content: center; border-radius: 50%; font-style: normal; font-size: 18px; color: #fff; background: radial-gradient(circle, #d81d36 55%, #a3122a); box-shadow: 0 0 0 2px rgba(255,255,255,.75) inset, 0 2px 6px rgba(0,0,0,.4); transform: rotate(-12deg); }
+.xmas-cal span em.x { background: none; box-shadow: none; transform: none; font-size: 16px; inset: auto 2px 2px auto; }
+.xmas-cal span[data-new] em { animation: xmasStamp .7s cubic-bezier(.2,1.5,.4,1) .25s both; }
+@keyframes xmasStamp { 0% { transform: scale(2.6) rotate(-30deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: scale(1) rotate(-12deg); opacity: 1; } }
+@keyframes xmasPop { 0% { transform: scale(.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.shop-grid li .limited, #shopGrid button.limited { background: linear-gradient(135deg, #a3122a, #1f6b3c); color: #fff; border: 0; }

@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "../../vendor/three/three.module.js", "three/addons/": "../../vendor/three/addons/" } }</script>
+<style>body{margin:0;background:#1c2a24}</style></head><body>
+<script type="module">
+// 🎄 출석 한정판 확인용: 위 줄 = 앞, 아래 줄 = 뒤 (마지막은 전부 착용). ?zoom=1 크게
+import * as THREE from 'three';
+import { Avatar } from '../../src/avatar.js';
+const q = new URLSearchParams(location.search);
+const SETS = [['rudolph'], ['xknit'], ['santasack'], ['santaboots'], ['santacoat'], ['snowwings'], ['xstar'], ['rudolph', 'xknit', 'santacoat', 'santaboots', 'snowwings', 'xstar']];
+const W = 1400, H = 820, r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping;
+const s = new THREE.Scene(); s.background = new THREE.Color(0x1c2a24);
+s.add(new THREE.HemisphereLight(0xeef2ff, 0x40352c, 2.3)); const k = new THREE.DirectionalLight(0xffffff, 2.2); k.position.set(2, 3, 4); s.add(k);
+const cam = new THREE.PerspectiveCamera(20, W / H, 0.1, 50); cam.position.set(0, 2.6, 14); cam.lookAt(0, 0.55, 0);
+SETS.forEach((acc, i) => [0, Math.PI].forEach((ry, row) => {
+  const g = i % 2 ? 'm' : 'f', a = new Avatar('', i === 7 ? '#26272c' : '#4f8cff', g, `${g === 'f' ? 1 : 0}0${i % 5}${g === 'f' ? 1 : 0}0`); a.label.visible = false; a.setAcc(acc);
+  a.root.position.set((i - 3.5) * 1.05, 1.15 - row * 1.55, 0); a.root.rotation.y = ry + (row ? 0.35 : -0.25); s.add(a.root);
+  a.animate?.(0.3, 0, 1.2);
+}));
+if (q.get('zoom')) { cam.fov = 9; cam.position.set(+q.get('zoom'), 1.8, 14); cam.lookAt(+q.get('zoom'), 1.25, 0); cam.updateProjectionMatrix(); }
+r.render(s, cam); window.done = true;
+</script></body></html>

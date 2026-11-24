@@ -294,7 +294,45 @@ const AM = {
   leatherBlack: new THREE.MeshStandardMaterial({ color: 0x141418, roughness: 0.35, metalness: 0.1 }),
   tan: new THREE.MeshStandardMaterial({ color: 0xd8b48a, roughness: 0.55 }),
   champagne: new THREE.MeshStandardMaterial({ color: 0xf0d9a8, roughness: 0.2, metalness: 0.7, emissive: 0x2a1e08 }),
+  // 🎄 크리스마스 출석 한정판
+  antler: new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.7 }),
+  holly: new THREE.MeshStandardMaterial({ color: 0x1f7a3e, roughness: 0.5 }),
+  berry: new THREE.MeshStandardMaterial({ color: 0xe0142a, roughness: 0.25, emissive: 0x300006 }),
+  knitR: new THREE.MeshStandardMaterial({ color: 0xc41e2e, roughness: 0.95 }),
+  knitG: new THREE.MeshStandardMaterial({ color: 0x1d6b3c, roughness: 0.95 }),
+  knitW: new THREE.MeshStandardMaterial({ color: 0xf7f3ea, roughness: 0.95 }),
+  santa: new THREE.MeshStandardMaterial({ color: 0xc8102e, roughness: 0.75, side: THREE.DoubleSide }),
+  snowFur: new THREE.MeshStandardMaterial({ color: 0xfbfaf7, roughness: 1, flatShading: true }),
+  gloss: new THREE.MeshStandardMaterial({ color: 0x111116, roughness: 0.18, metalness: 0.35 }),
+  giftG: new THREE.MeshStandardMaterial({ color: 0x1f8a4c, roughness: 0.4 }),
+  giftB: new THREE.MeshStandardMaterial({ color: 0x2f6fd8, roughness: 0.4 }),
+  ice: new THREE.MeshStandardMaterial({ color: 0xd8f1ff, roughness: 0.08, metalness: 0.35, emissive: 0x2f78c8, emissiveIntensity: 0.55, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
+  star: new THREE.MeshStandardMaterial({ color: 0xffd447, roughness: 0.22, metalness: 0.65, emissive: 0xc88a00, emissiveIntensity: 0.8 }),
 };
+// 두 점을 잇는 막대 (사슴뿔 · 눈꽃 가지)
+function rod(g, a, b, r, mat, r2 = r) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r, d.length(), 8), mat);
+  m.position.copy(A).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); g.add(m); return m;
+}
+function starGeo(R, r, depth) {
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + (i * Math.PI) / 5, q = i % 2 ? r : R; i ? sh.lineTo(Math.cos(a) * q, Math.sin(a) * q) : sh.moveTo(Math.cos(a) * q, Math.sin(a) * q); }
+  const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: depth * 0.5, bevelSize: R * 0.08, bevelSegments: 2 });
+  geo.center(); return geo;
+}
+// 눈꽃 (XY 평면, 가운데가 0,0)
+function snowflake(g, cx, cy, R, mat, tip) {
+  const f = new THREE.Group(); f.position.set(cx, cy, 0); g.add(f);
+  for (let k = 0; k < 6; k++) {
+    const a = (k * Math.PI) / 3, dx = Math.cos(a), dy = Math.sin(a);
+    rod(f, [0, 0, 0], [dx * R, dy * R, 0], R * 0.055, mat, R * 0.035);
+    for (const t of [0.45, 0.72]) for (const e of [-1, 1]) { const b = a + e * 0.75, L = R * (t < 0.6 ? 0.34 : 0.22); rod(f, [dx * R * t, dy * R * t, 0], [dx * R * t + Math.cos(b) * L, dy * R * t + Math.sin(b) * L, 0], R * 0.035, mat, R * 0.025); }
+    if (tip) { const s = new THREE.Mesh(new THREE.OctahedronGeometry(R * 0.07, 0), tip); s.position.set(dx * R * 1.04, dy * R * 1.04, 0); f.add(s); }
+  }
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.16, R * 0.16, R * 0.06, 6), mat); c.rotation.x = Math.PI / 2; f.add(c);
+  return f;
+}
 const flower = [0xff6b8b, 0xffd23f, 0xffffff, 0xb784ff, 0xff9a3d].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 }));
 const H0 = 0.78;
 function wingShape(w, h, round) { // 날개 한쪽 (x+ 쪽으로 펼침)
@@ -304,7 +342,7 @@ function wingShape(w, h, round) { // 날개 한쪽 (x+ 쪽으로 펼침)
   else { sh.bezierCurveTo(w * 0.2, h * 0.7, w * 0.8, h, w, h * 0.55); for (let i = 0; i < 4; i++) sh.quadraticCurveTo(w * (0.9 - i * 0.22), h * (0.3 - i * 0.12), w * (0.78 - i * 0.22), h * (0.18 - i * 0.14)); sh.lineTo(0, -0.02); }
   return new THREE.ShapeGeometry(sh, 16);
 }
-export const ACC_SLOTS = { face: '얼굴', head: '머리', top: '머리 위', back: '등', body: '옷', neck: '목', bag: '가방' };
+export const ACC_SLOTS = { face: '얼굴', head: '머리', top: '머리 위', back: '등', body: '옷', neck: '목', bag: '가방', feet: '신발' };
 export function makeAcc(id) {
   const g = new THREE.Group(); g.userData.id = id;
   const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.scale.set(sx, sy, sz); g.add(m); return m; };
@@ -444,6 +482,78 @@ export function makeAcc(id) {
       for (let i = 0; i < 12; i++) { const t = i / 11; add(new THREE.TorusGeometry(0.012, 0.004, 4, 8), AM.gold, 0.21 - t * 0.33, 0.36 + t * 0.2, 0.06 + Math.sin(t * Math.PI) * 0.1, 0, i * 0.8, 0); }
       break;
     }
+    // ----- 🎄 크리스마스 출석 한정판 (부티크에서 안 팖, advent.js) -----
+    case 'rudolph': { // 루돌프 뿔 머리띠 + 방울 + 호랑가시
+      add(new THREE.TorusGeometry(0.27, 0.016, 6, 32, Math.PI), AM.antler, 0, H0 + 0.0, 0.0, 0, 0, 0, 1.04, 1.12, 1); // 귀에서 귀로 넘어가는 띠
+      for (const e of [-1, 1]) {
+        const b = [e * 0.13, H0 + 0.2, 0.0], t = [e * 0.26, H0 + 0.47, -0.03];
+        rod(g, b, t, 0.03, AM.antler, 0.018);
+        rod(g, [e * 0.17, H0 + 0.29, -0.01], [e * 0.11, H0 + 0.42, 0.0], 0.02, AM.antler, 0.012);
+        rod(g, [e * 0.22, H0 + 0.38, -0.02], [e * 0.34, H0 + 0.45, -0.02], 0.018, AM.antler, 0.011);
+        rod(g, [e * 0.245, H0 + 0.43, -0.03], [e * 0.24, H0 + 0.53, -0.04], 0.016, AM.antler, 0.01);
+        add(new THREE.SphereGeometry(0.032, 12, 10), AM.gold, e * 0.255, H0 - 0.04, 0.06);
+      }
+      for (const [x, rz] of [[0.09, 0.5], [0.05, -0.4]]) add(new THREE.SphereGeometry(0.04, 10, 6), AM.holly, x, H0 + 0.245, 0.11, 0.5, 0, rz, 1.6, 0.4, 0.8);
+      for (const [x, y] of [[0.075, 0.26], [0.095, 0.24], [0.06, 0.235]]) add(new THREE.SphereGeometry(0.018, 8, 6), AM.berry, x, H0 + y, 0.14);
+      break;
+    }
+    case 'xknit': // 홀리데이 니트 목도리 (빨강 · 초록 · 흰 줄 + 방울 술)
+      add(new THREE.TorusGeometry(0.12, 0.05, 10, 22), AM.knitR, 0, 0.555, 0.01, Math.PI / 2 - 0.15, 0, 0);
+      for (const d of [-0.028, 0.028]) add(new THREE.TorusGeometry(0.12 + Math.abs(d) * 0.3, 0.051, 10, 22, Math.PI * 2), AM.knitW, 0, 0.555 + d, 0.01, Math.PI / 2 - 0.15, 0, 0, 1, 1, 0.2);
+      add(new THREE.BoxGeometry(0.085, 0.24, 0.04), AM.knitR, 0.075, 0.43, 0.17, -0.2, 0, 0.12);
+      for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.086, 0.022, 0.042), i === 1 ? AM.knitG : AM.knitW, 0.075 - i * 0.004, 0.37 + i * 0.05, 0.18 - i * 0.006, -0.2, 0, 0.12);
+      for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(0.018, 8, 6), AM.knitW, 0.055 + i * 0.021, 0.3, 0.19);
+      break;
+    case 'santasack': { // 산타 보따리: 등에 멘 커다란 빨간 자루 + 금 끈 + 삐죽 나온 선물
+      add(new THREE.SphereGeometry(0.2, 22, 16), AM.santa, 0.05, 0.47, -0.3, 0.2, 0, -0.25, 1, 1.15, 0.85);
+      add(new THREE.CylinderGeometry(0.075, 0.1, 0.07, 16), AM.santa, 0.11, 0.69, -0.33, 0.15, 0, -0.3);
+      add(new THREE.TorusGeometry(0.075, 0.014, 6, 18), AM.gold, 0.115, 0.68, -0.33, Math.PI / 2 + 0.15, 0, -0.3);
+      add(new THREE.BoxGeometry(0.11, 0.11, 0.11), AM.giftG, 0.13, 0.77, -0.34, 0.2, 0.5, -0.35);
+      add(new THREE.BoxGeometry(0.115, 0.02, 0.115), AM.gold, 0.13, 0.77, -0.34, 0.2, 0.5, -0.35);
+      add(new THREE.BoxGeometry(0.02, 0.115, 0.115), AM.gold, 0.13, 0.77, -0.34, 0.2, 0.5, -0.35);
+      add(new THREE.BoxGeometry(0.08, 0.09, 0.08), AM.giftB, 0.05, 0.74, -0.29, -0.15, -0.3, 0.2);
+      add(new THREE.BoxGeometry(0.082, 0.016, 0.082), AM.white, 0.05, 0.74, -0.29, -0.15, -0.3, 0.2);
+      rod(g, [0.12, 0.66, -0.3], [-0.1, 0.56, 0.12], 0.016, AM.gold);  // 어깨 끈
+      rod(g, [-0.1, 0.56, 0.12], [0.14, 0.32, 0.17], 0.016, AM.gold);
+      break;
+    }
+    case 'santaboots': // 산타 부츠: 반짝이는 검정 + 흰 털 + 금 버클 (두 다리에 하나씩)
+      g.userData.feet = true;
+      add(new THREE.CylinderGeometry(0.071, 0.068, 0.15, 14), AM.gloss, 0, -0.165, 0);
+      add(new THREE.SphereGeometry(0.078, 16, 10), AM.gloss, 0, -0.232, 0.035, 0, 0, 0, 0.95, 0.6, 1.42);
+      add(new THREE.CylinderGeometry(0.074, 0.074, 0.02, 16), AM.leatherBlack, 0, -0.262, 0.035, 0, 0, 0, 1, 1, 1.45);
+      add(new THREE.TorusGeometry(0.074, 0.03, 8, 18), AM.snowFur, 0, -0.088, 0, Math.PI / 2, 0, 0);
+      add(new THREE.TorusGeometry(0.072, 0.009, 6, 20), AM.leatherBlack, 0, -0.175, 0, Math.PI / 2, 0, 0); // 발목 끈
+      add(new THREE.BoxGeometry(0.045, 0.035, 0.012), AM.gold, 0, -0.175, 0.075);
+      break;
+    case 'santacoat': // 산타 코트: 빨강 벨벳 + 흰 털 장식 + 검정 벨트
+      add(new THREE.CylinderGeometry(0.168, 0.205, 0.3, 22), AM.santa, 0, 0.41, 0);
+      add(new THREE.TorusGeometry(0.2, 0.034, 8, 26), AM.snowFur, 0, 0.265, 0, Math.PI / 2, 0, 0);
+      add(new THREE.TorusGeometry(0.115, 0.045, 8, 22), AM.snowFur, 0, 0.555, 0.0, Math.PI / 2 - 0.2, 0, 0);
+      add(new THREE.BoxGeometry(0.05, 0.27, 0.03), AM.snowFur, 0, 0.42, 0.188, -0.14, 0, 0);
+      add(new THREE.CylinderGeometry(0.186, 0.19, 0.045, 22), AM.leatherBlack, 0, 0.35, 0);
+      add(new THREE.BoxGeometry(0.075, 0.06, 0.02), AM.gold, 0, 0.35, 0.192);
+      add(new THREE.BoxGeometry(0.045, 0.03, 0.022), AM.leatherBlack, 0, 0.35, 0.194);
+      g.userData.sleeve = { mat: AM.santa, r: 0.056, cuff: AM.snowFur };
+      break;
+    case 'snowwings': { // 눈꽃 날개: 빛나는 얼음 눈꽃 두 쌍 (날갯짓)
+      const wl = [];
+      for (const e of [-1, 1]) {
+        const pivot = new THREE.Group(); pivot.position.set(e * 0.05, 0.5, -0.2); g.add(pivot);
+        const f1 = snowflake(pivot, e * 0.27, 0.1, 0.22, AM.ice, AM.diamond); f1.rotation.z = e * 0.3;
+        const f2 = snowflake(pivot, e * 0.2, -0.16, 0.13, AM.ice, AM.diamond); f2.position.z = 0.01;
+        wl.push(pivot);
+      }
+      g.userData.wings = wl;
+      break;
+    }
+    case 'xstar': { // 크리스마스 스타: 머리 위에서 빙글빙글 도는 황금 별 + 반짝이 (12/25 당일 출석)
+      const sg = new THREE.Group(); sg.position.set(0, H0 + 0.52, 0); g.add(sg);
+      sg.add(new THREE.Mesh(starGeo(0.11, 0.048, 0.03), AM.star));
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2, s2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.016, 0), AM.diamond); s2.position.set(Math.cos(a) * 0.17, Math.sin(a * 2) * 0.03, Math.sin(a) * 0.17); sg.add(s2); }
+      g.userData.bob = true; g.userData.spin = sg;
+      break;
+    }
     case 'backpack': // 가죽 백팩 (등)
       add(new THREE.BoxGeometry(0.24, 0.26, 0.11), AM.leather, 0, 0.42, -0.24);
       add(new THREE.BoxGeometry(0.18, 0.1, 0.04), AM.leather, 0, 0.36, -0.31);
@@ -534,7 +644,7 @@ export class Avatar {
   }
   // 착용 아이템 (아이디 목록 또는 'a,b' 글자)
   setAcc(list) {
-    const ids = (Array.isArray(list) ? list : String(list || '').split(',')).filter(Boolean).slice(0, 4);
+    const ids = (Array.isArray(list) ? list : String(list || '').split(',')).filter(Boolean).slice(0, 8);
     if (ids.join(',') === (this.acc || []).join(',')) return;
     this.acc = ids;
     if (!this.accGroup) return;
@@ -549,6 +659,7 @@ export class Avatar {
     for (const id of this.acc || []) {
       const a = makeAcc(id);
       if (a.userData.hand) { this.armR.add(a); this.accExtra.push(a); continue; }
+      if (a.userData.feet) { this.legL.add(a); const b = makeAcc(id); this.legR.add(b); this.accExtra.push(a, b); continue; }
       this.accGroup.add(a);
       const sl = a.userData.sleeve;
       if (sl) for (const arm of [this.armL, this.armR]) {
@@ -630,6 +741,7 @@ export class Avatar {
       for (const a of this.accGroup.children) {
         if (a.userData.wings) a.userData.wings.forEach((w, i) => (w.rotation.y = (i ? -1 : 1) * (0.35 + Math.sin(this.accT * (a.userData.id === 'butterfly' ? 7 : 3.5)) * 0.25)));
         if (a.userData.bob) a.position.y = Math.sin(this.accT * 2) * 0.015;
+        if (a.userData.spin) a.userData.spin.rotation.y = this.accT * 1.6;
       }
     }
     if (this.sitting) {

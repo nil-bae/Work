@@ -14,6 +14,7 @@ import { unseenNews, markNewsSeen } from './news.js';
 import { XMAS, createPlazaTree, createSleigh, SLEIGH } from './xmas.js';
 import { createShop, createShopUI, SHOP } from './shop.js';
 import { createSnowField, createSnowFight } from './snow.js';
+import { createXmas } from './advent.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
@@ -232,7 +233,10 @@ const snowFight = createSnowFight({
 });
 $('btnSnow').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); snowFight.throw(); });
 const atShop = () => mode === 'office' && player.floor === 0 && shop.inside(player.x, player.z);
-const shopUI = createShopUI({ $, money, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => playBeep(880, 0.15), atShop, changed: () => applyWear() });
+const shopUI = createShopUI({ $, money, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => playBeep(880, 0.15), atShop, changed: () => applyWear(), openXmas: () => advent.open() });
+// 🎄 크리스마스 출석 (들어올 때 하루 한 번 도장 → 한정판 선물)
+const advent = createXmas({ $, money, me, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => { playBeep(988, 0.12); setTimeout(() => playBeep(1319, 0.18), 130); }, changed: () => applyWear() });
+function adventCheckIn() { if (!$('newsModal').hidden) { setTimeout(adventCheckIn, 500); return; } if (advent.checkIn()) advent.open(); }
 function applyWear() { me.acc = Object.values(money.wear()); myAvatar?.setAcc(me.acc); sendState(true); }
 let clerkGreetAt = -99;
 // 3층 투자 상담원 (NPC)
@@ -399,7 +403,7 @@ function saveProfile() {
   myAvatar.setLook(me.color, me.gender, me.look);
   if (renamed) myAvatar.setName(lvName(me.name, duel.level, duel.loser));
   if (renamed) duel.load(me.name);
-  if (renamed) { money.save(); money.load(me.name).then(applyWear); }
+  if (renamed) { money.save(); money.load(me.name).then(() => { applyWear(); advent.checkIn(); }); }
   if (renamed) reqs.refresh();
   closeProfile();
   sysMessage('캐릭터를 바꿨어요.');
@@ -432,7 +436,7 @@ function enter() {
   if (duel.level > 1 || duel.loser) myAvatar.setName(lvName(me.name, duel.level, duel.loser));
   duel.load(me.name); // 결투 레벨 · 칭호 (Supabase)
   money.load(me.name).then((notes) => { applyWear(); // 입구에 도착하면(날아 들어오는 장면이 끝나면) 오늘의 일급 알림
-    const t = setInterval(() => { if (mode !== 'office') return; clearInterval(t); showNews(); setTimeout(() => { notes.forEach((n) => toast(n, () => money.openWallet())); toast(money.greeting(), () => money.openWallet()); }, 300); }, 200);
+    const t = setInterval(() => { if (mode !== 'office') return; clearInterval(t); showNews(); setTimeout(() => { notes.forEach((n) => toast(n, () => money.openWallet())); toast(money.greeting(), () => money.openWallet()); }, 300); setTimeout(adventCheckIn, 900); }, 200);
   });
   reqs.refresh().then(() => { if (reqs.pending) toast(`📋 아직 끝나지 않은 업무 요청이 ${reqs.pending}개 있어요. (위쪽 📋 업무)`); });
   scene.add(myAvatar.root);
@@ -1603,5 +1607,5 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+window.__work = { advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;

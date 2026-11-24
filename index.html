@@ -81,6 +81,7 @@
       <div class="net"><i id="netDot"></i><span id="netText">연결 중…</span></div>
       <button id="workChip" class="work-chip" title="오늘 근무 시간 · 일급 (누르면 지갑)">⏱ 0:00:00</button>
       <nav class="actions">
+        <button id="btnXmas" class="xmas-btn" title="크리스마스 출석" hidden><i>🎄</i><span>출석</span><b id="xmasCount">0</b></button>
         <button id="btnMe" title="내 캐릭터 바꾸기"><i>👤</i><span>내 캐릭터</span></button>
         <button id="btnFloor" title="층 이동"><i>🛗</i><span>층 이동</span></button>
         <button id="btnNotice" title="공지"><i>📢</i><span>공지</span></button>
@@ -174,6 +175,24 @@
       <header><h2>🆕 새로 생겼어요</h2><button class="close" data-close>✕</button></header>
       <div id="newsBody"></div>
       <button id="newsOk" class="primary" type="button">확인했어요</button>
+    </div>
+  </div>
+  <!-- 🎄 크리스마스 출석 -->
+  <div id="xmasModal" class="modal" hidden>
+    <div class="modal-card xmas-card">
+      <div class="xmas-hero">
+        <button class="close" data-close>✕</button>
+        <small>WORK CHRISTMAS ADVENT · 11.24 – 12.25</small>
+        <h2>🎄 크리스마스 출석 선물</h2>
+        <p>매일 들어오기만 하면 도장 쾅! 모일수록 더 귀한 <b>한정판</b>을 드려요.<br>부티크에서는 절대 팔지 않아요.</p>
+        <div id="xmasStat" class="xmas-stat"></div>
+        <div id="xmasBar" class="xmas-bar"></div>
+      </div>
+      <div id="xmasFresh" class="xmas-fresh" hidden></div>
+      <h3 class="xmas-h">🎁 출석 선물</h3>
+      <ul id="xmasGifts" class="xmas-gifts"></ul>
+      <h3 class="xmas-h">📅 출석 도장</h3>
+      <div id="xmasCal" class="xmas-cal"></div>
     </div>
   </div>
   <!-- 👜 부티크 -->
