@@ -431,3 +431,16 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 #btnKick.on { background: linear-gradient(135deg, #3ecf8e, #2ec4d6); border-color: #fff; }
 #btnKick:active { transform: scale(.9); }
 @media (hover: hover) and (pointer: fine) { #btnKick { bottom: 120px; } }
+
+/* 🏁 킥보드 레이스 */
+#raceHud { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); padding: 8px 16px; border-radius: 999px; background: rgba(20,20,24,.82); border: 1px solid rgba(255,255,255,.3); color: #fff; font-size: 14px; white-space: nowrap; pointer-events: none; z-index: 6; font-variant-numeric: tabular-nums; }
+#raceHud b { color: #ffd36b; font-size: 16px; } #raceHud b.boost { color: #5ff2ff; }
+#raceCount { position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; font-weight: 900; color: #fff; text-shadow: 0 6px 24px rgba(0,0,0,.5), 0 0 2px #000; pointer-events: none; z-index: 7; animation: raceBeat 1s ease-out infinite; }
+@keyframes raceBeat { 0% { transform: translate(-50%, -50%) scale(1.4); opacity: .4; } 25% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+#raceQuit { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); background: rgba(20,20,24,.6); color: #ddd; font-size: 12px; z-index: 6; }
+#raceResult { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(340px, 88vw); padding: 20px 18px 16px; border-radius: 18px; background: linear-gradient(160deg, #1d1f26, #121317); border: 2px solid #e8352f; color: #fff; text-align: center; z-index: 8; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+#raceResult > b { display: block; font-size: 30px; color: #ffd36b; }
+#raceResult > span { display: block; margin-top: 4px; color: #5ff2ff; font-weight: 700; }
+#raceResult > em { display: block; margin: 6px 0 10px; font-style: normal; font-weight: 800; color: #7dffb0; }
+#raceResult ol { text-align: left; margin: 0 0 12px; padding-left: 22px; } #raceResult li { padding: 3px 0; } #raceResult li small { float: right; opacity: .75; font-variant-numeric: tabular-nums; } #raceResult li.me { color: #ffd36b; font-weight: 700; }
+#raceResult button { width: 100%; padding: 10px; border-radius: 12px; border: 0; background: #e8352f; color: #fff; font-weight: 800; }

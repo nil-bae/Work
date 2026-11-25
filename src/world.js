@@ -467,13 +467,13 @@ export function createTraffic() {
   cars.forEach((c, i) => bodyMesh.setColorAt(i, col.set(c.color)));
   for (const m of [bodyMesh, darkMesh, lightMesh]) { m.frustumCulled = false; group.add(m); }
 
-  const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), pos = new THREE.Vector3();
+  const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), zero = new THREE.Vector3(0.0001, 0.0001, 0.0001), pos = new THREE.Vector3();
   const place = () => {
     cars.forEach((c, i) => {
       const [x, z] = c.r.at(c.s, c.lane);
       const [x2, z2] = c.r.at(c.s + Math.sign(c.v) * 0.5, c.lane);
       q.setFromAxisAngle(up, Math.atan2(x2 - x, z2 - z));
-      mtx.compose(pos.set(x, GROUND_Y, z), q, one);
+      mtx.compose(pos.set(x, GROUND_Y, z), q, Math.abs(x) < 74 && Math.abs(z) < 74 ? zero : one); // 🏁 회사 둘레 도로는 킥보드 레이스 코스라 차를 통제
       bodyMesh.setMatrixAt(i, mtx); darkMesh.setMatrixAt(i, mtx); lightMesh.setMatrixAt(i, mtx);
     });
     bodyMesh.instanceMatrix.needsUpdate = darkMesh.instanceMatrix.needsUpdate = lightMesh.instanceMatrix.needsUpdate = true;

@@ -15,6 +15,7 @@ import { XMAS, createPlazaTree, createSleigh, SLEIGH } from './xmas.js';
 import { createShop, createShopUI, SHOP, ITEMS } from './shop.js';
 import { createSnowField, createSnowFight } from './snow.js';
 import { createXmas } from './advent.js';
+import { createRace, createRaceTrack, RACE } from './race.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, ACC_SLOTS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
@@ -191,7 +192,7 @@ const duel = createDuel({
     sendState(true);
   },
 });
-const busy = () => game.on || duel.fighting || ride.mine;
+const busy = () => game.on || duel.fighting || ride.mine || race?.driving;
 // 📋 업무 요청
 const reqs = createRequests({
   $, me, esc: (t) => esc(t), openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t),
@@ -230,6 +231,16 @@ const snowFight = createSnowFight({
   send: (e) => net?.sendEvent(e), sendNow: () => sendState(true), earn: (n) => money.earn(n),
   toast: (t) => toast(t, null), sys: (t) => sysMessage(t),
   thump: () => playThump(0.5), whoosh: () => playBeep(520, 0.05), ding: () => playBeep(1180, 0.1),
+});
+// 🏁 킥보드 레이스 (회사 밖 도로 한 바퀴)
+const raceTrack = createRaceTrack(bld.floors[0].colliders);
+scene.add(raceTrack.group);
+const race = createRace({
+  $, me, peers, isTouch, cam, player: () => player, send: (e) => net?.sendEvent(e), earn: (n) => money.earn(n),
+  sys: (t) => sysMessage(t), toast: (t) => toast(t, null), beep: (f, d) => playBeep(f, d), ding: () => { playBeep(988, 0.12); setTimeout(() => playBeep(1319, 0.2), 130); },
+  ownKick: () => me.kick || (money.ready ? money.items().find((id) => KICK_IDS.includes(id)) : null),
+  toFloor0: () => { player.floor = 0; bld.setFloor(0, false); },
+  changed: () => { clearTarget(); sendState(true); },
 });
 $('btnKick').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); toggleKick(); });
 $('btnSnow').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); snowFight.throw(); });
@@ -478,7 +489,7 @@ function enter() {
   placeAvatar(myAvatar, player);
   me.jt = Date.now();
   net = connect(me, {
-    onState, onChat: receiveChat, onLeave: removePeer, onSync: () => sendState(true), onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); snowFight.onEvent(e); },
+    onState, onChat: receiveChat, onLeave: removePeer, onSync: () => sendState(true), onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); snowFight.onEvent(e); race.onEvent(e); },
     onStatus(text, online) { $('netText').textContent = text; $('netDot').classList.toggle('on', online); },
   });
   sysMessage(returning
@@ -630,6 +641,7 @@ function updatePlayer(dt) {
   const mag = Math.min(Math.hypot(f, s), 1);
   const run = keys.has('ShiftLeft') || keys.has('ShiftRight') || Math.hypot(joy.x, joy.y) > 0.95;
   let moved = 0;
+  if (race.driving) moved = race.drive(dt, f, s); // 🏁 레이스 중엔 킥보드를 직접 몬다
   if (busy()) { f = 0; s = 0; }
   if (player.sit && mag > 0.05 && !busy()) standUp();
   if (mag <= 0.05) moveYaw = null;
@@ -670,8 +682,9 @@ function updatePlayer(dt) {
     }
   }
   player.speed = dt > 0 ? moved / dt : 0;
-  { const k = me.kick && !player.sit && !busy() ? me.kick : null; if (k !== (myAvatar.kickId || null)) { myAvatar.setKick(k); sendState(true); } }
+  { const k = race.driving ? race.kick : me.kick && !player.sit && !busy() ? me.kick : null; if (k !== (myAvatar.kickId || null)) { myAvatar.setKick(k); sendState(true); } }
   { const g = player.sit ? 0 : groundAt(player.x, player.z, myAvatar.jy); if (Math.abs(g - myAvatar.ground) > 0.05 && performance.now() - lastSend > 300) { myAvatar.ground = g; sendState(true); } else myAvatar.ground = g; }
+  if (race.driving) myAvatar.ground = -0.3; // 회사 밖 도로 높이
   placeAvatar(myAvatar, player);
   myAvatar.animate(dt, player.speed, now);
 
@@ -700,6 +713,7 @@ function updatePlayer(dt) {
   else if (what === 'npc') { pr.textContent = isTouch ? '💬 비서에게 말 걸기 (누르기)' : 'E  💬 비서에게 말 걸기'; pr.hidden = false; }
   else if (what === 'notice') { pr.textContent = isTouch ? '공지판 보기 (누르기)' : 'E  공지판 보기'; pr.hidden = false; }
   else if (what === 'elev') { pr.textContent = isTouch ? '엘리베이터 타기 (누르기)' : 'E  엘리베이터 타기'; pr.hidden = false; }
+  else if (what === 'race') { pr.textContent = race.lobbyText; pr.hidden = false; }
   else if (snowFight.inField) { pr.textContent = isTouch ? '❄ 버튼: 캐릭터가 보는 쪽으로 눈 던지기' : 'F  ❄ 눈 던지기 (캐릭터가 보는 쪽으로)'; pr.hidden = false; }
   else pr.hidden = true;
 }
@@ -716,6 +730,7 @@ function nearWhat() {
   if (player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + 1.55), player.z - INVEST.z) < 1.0) return 'invest';
   if (player.floor === 0 && Math.hypot(player.x - SHOP.counter.x, player.z - SHOP.counter.z) < 1.2) return 'shop';
   if (XMAS && player.floor === 0 && !ride.flying && Math.hypot(player.x - (SLEIGH.x - 0.3), player.z - SLEIGH.z) < 2.0) return 'sleigh';
+  if (player.floor === 0 && !race.driving && Math.hypot(player.x - RACE.kiosk.x, player.z - (RACE.kiosk.z - 0.9)) < 1.6) return 'race';
   if (Math.hypot(player.x - ELEV.x, player.z - ELEV.z) < 1.9) return 'elev';
   if (player.floor === 3) for (const b of BOOTHS) if (Math.hypot(player.x - b.spot.x, player.z - b.spot.z) < 0.85) return { booth: b };
   {
@@ -891,7 +906,7 @@ let camLift = 0;
 function officeCamPose(dt, out) {
   const outside = player.floor === 0 && (Math.abs(player.x) > HX || Math.abs(player.z) > HZ);
   const fy = FLOORS[player.floor].y, top = player.floor === ROOF || outside ? 7 : CEIL - 0.15;
-  const bx = player.floor === 0 ? LOT : HX, bz = player.floor === 0 ? LOT : HZ;
+  const bx = race.driving ? 400 : player.floor === 0 ? LOT : HX, bz = race.driving ? 400 : player.floor === 0 ? LOT : HZ;
   camLift += (((myAvatar && !player.sit) ? myAvatar.ground : 0) - camLift) * 0.1;
   const jumpLift = myAvatar && !player.sit ? Math.max(0, myAvatar.jy - myAvatar.ground) * 0.4 : 0;
   const tx = player.x, ty = fy + 0.85 + camLift + jumpLift, tz = player.z;
@@ -900,7 +915,7 @@ function officeCamPose(dt, out) {
   for (let t = 0.3; t <= cam.dist; t += 0.12) {
     const x = tx + dir.x * t, y = ty + dir.y * t, z = tz + dir.z * t;
     const inBld = Math.abs(x) < HX && Math.abs(z) < HZ;
-    if (Math.abs(x) > bx - 0.15 || Math.abs(z) > bz - 0.15 || y > fy + (inBld && !outside ? top : 7) || (outside && inBld && y > CEIL - 0.1 && y < 4.1) || y < fy + 0.15 || insideTall(x, z)) { allowed = Math.max(0.3, t - 0.12); break; }
+    if (Math.abs(x) > bx - 0.15 || Math.abs(z) > bz - 0.15 || y > fy + (inBld && !outside ? top : 7) || (outside && inBld && y > CEIL - 0.1 && y < 4.1) || y < fy + (race.driving ? -0.1 : 0.15) || insideTall(x, z)) { allowed = Math.max(0.3, t - 0.12); break; }
   }
   if (dt === null) cam.cur = allowed;
   else cam.cur = allowed < cam.cur ? allowed : cam.cur + (allowed - cam.cur) * Math.min(1, dt * 3);
@@ -969,7 +984,7 @@ function sendState(force = false) {
   if (!force && !(movedEnough && t - lastSend > 300) && t - lastSend < 10000) return;
   lastSend = t;
   lastSent = { x: player.x, z: player.z, ry: player.ry };
-  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '' });
+  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '', rp: race.progress });
 }
 
 function onState(p) {
@@ -1011,6 +1026,7 @@ function onState(p) {
   peer.jc = p.jc || 0;
   peer.av.ground = +p.hy || 0;
   peer.av.setKick(p.kb || null);
+  peer.rp = p.rp;
 }
 const recentlyGone = new Map(); // 이름 → 나간 시각 (잠깐 다녀온 사람은 '들어왔어요'를 또 띄우지 않음)
 function removePeer(id, quiet = false) {
@@ -1145,6 +1161,7 @@ function interact() {
   const what = nearWhat();
   if (ride.mine) { if (!ride.flying) rideLeave(); return; }
   if (what === 'sleigh') { rideJoin(); return; }
+  if (what === 'race') { race.join(); return; }
   if (player.sit) { standUp(); return; }
   if (what && what.booth) startGame(what.booth);
   else if (what && what.seat) sitDown(what.seat);
@@ -1606,6 +1623,7 @@ function frame() {
   duel.update(dt);
   updateSparks(dt);
   snowFight.update(dt);
+  race.tick(); raceTrack.update(now);
   duelHost.root.visible = !(mode === 'office' && player.floor !== ARENA.floor); duelHost.animate(dt, 0, now);
   if (duelBot.root.visible) duelBot.animate(dt, 0, now);
   if (pingMark.visible) { pingMark.scale.setScalar(Math.max(1, pingMark.scale.x - dt * 3)); pingMark.rotation.z += dt * 2; }
@@ -1645,5 +1663,5 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+window.__work = { race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;
