@@ -116,8 +116,12 @@ export function createSnowFight(api) {
     hud();
     return give;
   }
+  let flashMsg = '', flashT = 0;
+  function flash(t) { flashMsg = t; clearTimeout(flashT); hud(); flashT = setTimeout(() => { flashMsg = ''; hud(); }, 1400); }
   function hud() {
     const el = $('snowHud'); if (!el) return;
+    el.classList.toggle('flash', !!flashMsg);
+    if (flashMsg && inField) { el.hidden = false; el.innerHTML = `<b>${flashMsg}</b>`; return; }
     el.hidden = !inField;
     if (!inField) return;
     if (pay.day !== today()) pay = { day: today(), won: 0 };
@@ -214,7 +218,7 @@ export function createSnowFight(api) {
           const tp = t.g.position;
           if (Math.hypot(b.x - tp.x, b.z - tp.z) < 0.36 && b.y < 1.05) {
             t.wob = 1; kill(b); gone = true;
-            if (b.by === me.id) { hits++; const g = reward(PAY_TARGET); api.toast(`⛄ 눈사람 명중!${g ? ` +${won(g)}` : ''}`); api.ding(); }
+            if (b.by === me.id) { hits++; const g = reward(PAY_TARGET); flash(`⛄ 눈사람 명중!${g ? ` +${won(g)}` : ''}`); api.ding(); } // 채팅에는 안 남김(사용자 요청), 점수판에만 잠깐
             break;
           }
         }

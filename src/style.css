@@ -206,6 +206,7 @@ input, textarea { font: inherit; color: var(--fg); }
 #btnSnow:active { transform: scale(.9); }
 #snowHud { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 999px; background: rgba(20,40,70,.78); border: 1px solid rgba(255,255,255,.35); color: #eaf4ff; font-size: 13px; white-space: nowrap; pointer-events: none; z-index: 5; }
 #snowHud b { color: #fff; }
+#snowHud.flash { background: rgba(214,120,20,.92); border-color: #ffe39a; font-size: 15px; }
 #snowSplat { position: absolute; inset: 0; pointer-events: none; z-index: 4; background: radial-gradient(circle at 30% 40%, rgba(255,255,255,.85) 0 9%, transparent 10%), radial-gradient(circle at 62% 55%, rgba(255,255,255,.8) 0 12%, transparent 13%), radial-gradient(circle at 45% 70%, rgba(255,255,255,.75) 0 6%, transparent 7%), radial-gradient(circle at 75% 30%, rgba(255,255,255,.7) 0 5%, transparent 6%), radial-gradient(circle, rgba(230,240,255,.25), rgba(230,240,255,.45)); }
 
 /* ⚔️ 결투 */
