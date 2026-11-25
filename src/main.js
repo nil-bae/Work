@@ -676,7 +676,7 @@ function updatePlayer(dt) {
   else if (what === 'npc') { pr.textContent = isTouch ? '💬 비서에게 말 걸기 (누르기)' : 'E  💬 비서에게 말 걸기'; pr.hidden = false; }
   else if (what === 'notice') { pr.textContent = isTouch ? '공지판 보기 (누르기)' : 'E  공지판 보기'; pr.hidden = false; }
   else if (what === 'elev') { pr.textContent = isTouch ? '엘리베이터 타기 (누르기)' : 'E  엘리베이터 타기'; pr.hidden = false; }
-  else if (snowFight.inField) { pr.textContent = isTouch ? '❄ 버튼: 화면이 보는 쪽으로 눈 던지기' : 'F  ❄ 눈 던지기 (화면이 보는 쪽으로)'; pr.hidden = false; }
+  else if (snowFight.inField) { pr.textContent = isTouch ? '❄ 버튼: 캐릭터가 보는 쪽으로 눈 던지기' : 'F  ❄ 눈 던지기 (캐릭터가 보는 쪽으로)'; pr.hidden = false; }
   else pr.hidden = true;
 }
 

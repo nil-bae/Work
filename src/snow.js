@@ -1,4 +1,4 @@
-// ⛄ 눈싸움장: 사옥 뒤쪽(북쪽) 정원, 울타리로 둘러싸고 사옥 쪽 문으로만 드나듦. 안에 들어가면 F 키(휴대폰은 ❄ 버튼)로 화면이 보는 쪽으로 눈덩이를 던짐.
+// ⛄ 눈싸움장: 사옥 뒤쪽(북쪽) 정원, 울타리로 둘러싸고 사옥 쪽 문으로만 드나듦. 안에 들어가면 F 키(휴대폰은 ❄ 버튼)로 캐릭터가 보는 쪽으로 눈덩이를 던짐.
 // 던질 때만 알림 하나({t:'snow', k:'throw'})를 보내고, 눈덩이는 모든 화면이 똑같이 계산해서 날림 (서버 부담 적음).
 // 눈덩이는 울타리 밖으로 못 나가고, 안에 있는 사람만 맞음. 맞았는지는 '맞은 사람' 화면이 판단해서 {k:'hit'}를 보냄 → 던진 사람이 맞힘 +1 · 용돈.
 // 움직이는 꼬마 눈사람 과녁 3개(혼자서도 연습), 눈 벽 4개(숨기).
@@ -145,14 +145,14 @@ export function createSnowFight(api) {
     fx.add(g); puffs.push({ g, mat, t: 0 });
   }
 
-  // 던지기: 화면(카메라)이 보는 쪽으로
+  // 던지기: 캐릭터가 바라보는 쪽으로 (휴대폰은 카메라가 안 돌아서, 화면 방향으로 하면 늘 한쪽으로만 날아갔음)
   function throwBall() {
     if (!inField || api.busy() || api.now() < nextThrow) return;
     nextThrow = api.now() + COOL;
     const p = api.player(), av = api.avatar();
-    let yaw = api.camYaw();
-    // 살짝 도와주기: 보는 방향에서 13° 안쪽 · 9m 안에 사람(또는 눈사람)이 있으면 그쪽으로 (휴대폰에서도 맞힐 수 있게)
-    let best = 0.23, aim = null;
+    let yaw = p.ry + Math.PI; // 캐릭터 정면 (ry=0이면 남쪽 +z)
+    // 살짝 도와주기: 보는 방향에서 17° 안쪽 · 9m 안에 사람(또는 눈사람)이 있으면 그쪽으로 (휴대폰에서도 맞힐 수 있게)
+    let best = 0.3, aim = null;
     const cand = [...[...peers.values()].filter((q) => q.floor === 0 && inSnow(0, q.x, q.z)).map((q) => [q.x, q.z]), ...field.targets.map((t) => [t.g.position.x, t.g.position.z])];
     for (const [tx, tz] of cand) {
       const d = Math.hypot(tx - p.x, tz - p.z); if (d < 0.6 || d > 9) continue;
@@ -161,7 +161,7 @@ export function createSnowFight(api) {
     }
     if (aim) yaw = Math.atan2(-(aim[0] - p.x), -(aim[1] - p.z));
     const dx = -Math.sin(yaw), dz = -Math.cos(yaw);
-    p.ry = Math.atan2(dx, dz);
+    p.ry = Math.atan2(dx, dz); // (도움으로 방향이 바뀌면 그쪽을 보게)
     av?.punch(api.now());
     const y0 = (av?.root.position.y || 0) + 0.78;
     const b = { k: 'throw', t: 'snow', id: `${me.id}-${++seq}`, by: me.id, x: +(p.x + dx * 0.35).toFixed(2), y: +y0.toFixed(2), z: +(p.z + dz * 0.35).toFixed(2), vx: +(dx * SPEED).toFixed(2), vy: UP, vz: +(dz * SPEED).toFixed(2) };
@@ -194,7 +194,7 @@ export function createSnowFight(api) {
     const p = api.player();
     const was = inField;
     inField = api.active() && inSnow(p.floor, p.x, p.z);
-    if (inField !== was) { hud(); $('btnSnow').hidden = !(inField && api.isTouch); if (inField && !was) api.sys('⛄ 눈싸움장에 들어왔어요! 화면이 보는 쪽으로 눈을 던져요 (F 키 · ❄ 버튼). 사람을 맞히면 +1,000원, 눈사람 과녁은 +100원 (하루 최대 1만 원).'); }
+    if (inField !== was) { hud(); $('btnSnow').hidden = !(inField && api.isTouch); if (inField && !was) api.sys('⛄ 눈싸움장에 들어왔어요! 캐릭터가 보는 쪽으로 눈을 던져요 (F 키 · ❄ 버튼). 사람을 맞히면 +1,000원, 눈사람 과녁은 +100원 (하루 최대 1만 원).'); }
     field.placeTargets(dt);
     for (const b of [...balls]) {
       if (b.wait > 0) { b.wait -= dt; continue; }
