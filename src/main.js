@@ -1021,6 +1021,16 @@ function onState(p) {
   if (p.dv && p.dv === me.dev && (p.jt || 0) < me.jt) { if (peers.has(p.id)) removePeer(p.id, true); return; }
   // 같은 이름: 나중에 들어온 사람이 이름을 바꿔야 함
   if (p.name === me.name && myAvatar && ((p.jt || 0) < me.jt || ((p.jt || 0) === me.jt && p.id < me.id))) askNewName();
+  // 11-26 같은 이름이 여러 명 보이던 것: ① 같은 기기에서 새로 고침해 남은 예전 화면(유령)은 지우고 ② 다른 기기에서 나중에 온 같은 이름은 이름을 바꿀 때까지 안 보여 줌
+  const later = (aj, aid, bj, bid) => (aj || 0) > (bj || 0) || ((aj || 0) === (bj || 0) && aid > bid); // a가 b보다 나중에 왔나
+  if (p.name === me.name && myAvatar && later(p.jt, p.id, me.jt, me.id)) { if (peers.has(p.id)) removePeer(p.id, true); return; }
+  for (const [id, q] of peers) {
+    if (id === p.id || q.name !== p.name) continue;
+    const pLater = later(p.jt, p.id, q.jt, id);
+    if (q.dv && q.dv === p.dv) { if (pLater) removePeer(id, true); else return; }            // 같은 기기: 예전 것(유령) 정리
+    else if (pLater) { if (peers.has(p.id)) removePeer(p.id, true); return; }                 // 다른 기기 · 나중에 옴: 숨김
+    else removePeer(id, true);                                                                 // 먼저 보인 쪽이 사실은 나중에 온 사람
+  }
   let peer = peers.get(p.id);
   if (!peer || peer.name !== p.name) {
     if (peer) { scene.remove(peer.av.root); peer.av.dispose(); }
@@ -1031,6 +1041,7 @@ function onState(p) {
     if (fresh) { if (Date.now() - (recentlyGone.get(p.name) || 0) > 5 * 60000) sysMessage(`${p.name}님이 들어왔어요.`); sendState(true); }
     updateOnline();
   }
+  peer.jt = p.jt; peer.dv = p.dv;
   peer.av.setLook(p.color, p.g, p.lk); peer.color = p.color; // 같으면 아무것도 안 함
   peer.av.setAcc(p.ac || '');
   // 받은 위치를 시간과 함께 모아 두고, 조금 늦게(0.45초) 그 사이를 부드럽게 이어 그림
