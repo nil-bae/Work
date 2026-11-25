@@ -294,7 +294,7 @@ let clerkGreetAt = -99;
 // 3층 투자 상담원 (NPC)
 const advisor = new Avatar('💹 투자 상담원', '#2d3b55', 'f', '21100');
 advisor.root.position.set(INVEST.x, FLOORS[INVEST.floor].y, INVEST.z);
-advisor.root.rotation.y = Math.PI / 2; // 손님(동쪽)을 바라봄
+advisor.root.rotation.y = (INVEST.s ?? 1) * Math.PI / 2; // 손님 쪽을 바라봄
 advisor.setSit(true, 0.42); // 의자에 앉아 상담
 scene.add(advisor.root);
 bld.floors[INVEST.floor].colliders.push({ x1: INVEST.x - 0.3, z1: INVEST.z - 0.3, x2: INVEST.x + 0.3, z2: INVEST.z + 0.3, tall: false, top: 1.3 });
@@ -303,7 +303,7 @@ let advLine = 0, advGreetAt = -99;
 function updateAdvisor(dt) {
   advisor.root.visible = !(mode === 'office' && player.floor !== INVEST.floor);
   advisor.animate(dt, 0, now);
-  if (mode === 'office' && player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + 1.7), player.z - INVEST.z) < 2.6 && now - advGreetAt > 60) { advGreetAt = now; advisor.say(ADVISOR_LINES[advLine++ % ADVISOR_LINES.length], now); }
+  if (mode === 'office' && player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + (INVEST.s ?? 1) * 1.7), player.z - INVEST.z) < 2.6 && now - advGreetAt > 60) { advGreetAt = now; advisor.say(ADVISOR_LINES[advLine++ % ADVISOR_LINES.length], now); }
 }
 // 칼이 맞는 자리에 번쩍 (두 사람 사이) · 맞으면 화면 흔들림
 let camShake = 0;
@@ -749,7 +749,7 @@ function nearWhat() {
   if (player.floor === NOTICE.floor && Math.hypot(player.x - NOTICE.x, player.z - NOTICE.z) < 2.4) return 'notice';
   if (player.floor === 0 && Math.hypot(player.x - (NPC_SPOT.x + 1.4), player.z - NPC_SPOT.z) < 1.3) return 'npc';
   if (player.floor === ARENA.floor && Math.hypot(player.x - HOST.x, player.z - (HOST.z + 0.8)) < 1.2) return 'host';
-  if (player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + 1.55), player.z - INVEST.z) < 1.0) return 'invest';
+  if (player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + (INVEST.s ?? 1) * 1.55), player.z - INVEST.z) < 1.0) return 'invest';
   if (player.floor === 0 && Math.hypot(player.x - SHOP.counter.x, player.z - SHOP.counter.z) < 1.2) return 'shop';
   if (sleigh && player.floor === 0 && !ride.flying && Math.hypot(player.x - (SLEIGH.x - 0.3), player.z - SLEIGH.z) < 2.0) return 'sleigh';
   if (player.floor === 0 && !race.driving && Math.hypot(player.x - RACE.kiosk.x, player.z - (RACE.kiosk.z - 0.9)) < 1.6) return 'race';
