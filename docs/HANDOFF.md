@@ -221,3 +221,7 @@ docs/HANDOFF.md 를 먼저 읽고 그대로 이어서 해줘.
 - 자리 `PARTY` 옥상(floor 4) **동쪽 소파 옆** x 6.65~9.8, z 0.85~5.05, **높이 50cm 단**(collider top 0.55, fixedTop — 점프로 올라감, 계단 없음). 처음엔 엘리베이터 옆이었는데 사용자가 '너무 엘베 앞, 소파 쪽에 가로형 무대, 점프로 올라가게 단차' 요청 → 옮김. 구역 `party`(가장자리 0.2m 여유). LED 플로어 6×8칸 색 물결, DJ 부스 · 스피커(서쪽 난간), 트러스 + 빛기둥 4 + 미러볼 + 반짝이 + 'PARTY 🪩' 네온. 진짜 조명 없음.
 - 무대 위에서만 💃 버튼(#btnDance) · G 키 → 누를 때마다 다음 춤(1 신나는 점프 · 2 웨이브 · 3 로봇 · 4 빙글빙글 · 5 셔플). 움직이거나 앉거나 무대를 벗어나면 멈춤. 상태 `dn`.
 - 춤추는 동안 얼굴은 ^ ^ 감은 눈 + 활짝 벌린 입: avatar `buildBody(…, happy)`로 다시 그림(`setDance`가 얼굴이 바뀔 때만 build). 확인: `tools/check/dance.html`.
+
+## ⚠️ 배포할 때마다: `python3 tools/stamp.py` 먼저 (11-25)
+- GitHub Pages는 파일을 최대 10분 저장해 둬서 휴대폰이 새 파일 · 예전 파일을 섞어 써서 새 기능이 고장 남(댄스 파티가 안 됨 제보). `tools/stamp.py`가 index.html의 import map에 src/*.js마다 `?v=시각`을 붙이고 main.js · style.css에도 붙임 → 새로 고침 한 번에 전부 최신.
+- src에 새 .js 파일을 만들면 stamp.py가 자동으로 넣음(목록을 폴더에서 읽음). 커밋 직전에 실행해서 index.html도 같이 커밋.
