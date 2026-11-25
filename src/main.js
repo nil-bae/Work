@@ -216,7 +216,7 @@ function showToast(text, onClick) {
 }
 // 💰 월급 · 지갑 · 💹 투자
 const money = createMoney({ $, me, openItems: () => shopUI.open('mine'), openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t, () => money.openWallet()),
-  atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), get board() { return bld.investBoard; } });
+  atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), rate: () => (player.sit && player.working ? (player.floor === 1 ? 2 : 1) : 0.5) /* 💼 2층 자리에서 일하면 2배 · 일 안 하면 1/2 */, get board() { return bld.investBoard; } });
 $('workChip').onclick = () => money.openWallet();
 // 👜 WORK BOUTIQUE (1층 정원 동쪽): 아이템 사서 착용
 const shop = createShop(bld.floors[0].colliders);
@@ -866,7 +866,7 @@ function sitDown(seat) {
   myAvatar.setSit(true, seat.h);
   player.working = !!seat.desk;
   myAvatar.setWorking(player.working);
-  if (player.working) sysMessage('💻 일하는 중이에요. 다른 사람 화면에 "일하는 중..." 풍선이 보여요.');
+  if (player.working) sysMessage(player.floor === 1 ? '💻 2층 업무 자리에서 일하는 중이에요. 지금 시급 2배(20,640원)! 다른 사람 화면에 "일하는 중..." 풍선이 보여요.' : '💻 일하는 중이에요 (시급 10,320원). 2층 업무 자리에서 일하면 시급이 2배예요!');
   cam.yaw = seat.ry + Math.PI; cam.pitch = 0.3;
   sendState(true);
 }
@@ -1663,5 +1663,5 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+window.__work = { sitDown, race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;

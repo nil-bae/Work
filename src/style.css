@@ -444,3 +444,8 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 #raceResult > em { display: block; margin: 6px 0 10px; font-style: normal; font-weight: 800; color: #7dffb0; }
 #raceResult ol { text-align: left; margin: 0 0 12px; padding-left: 22px; } #raceResult li { padding: 3px 0; } #raceResult li small { float: right; opacity: .75; font-variant-numeric: tabular-nums; } #raceResult li.me { color: #ffd36b; font-weight: 700; }
 #raceResult button { width: 100%; padding: 10px; border-radius: 12px; border: 0; background: #e8352f; color: #fff; font-weight: 800; }
+
+/* 💼 시급 배수 표시 */
+#workChip .rate { font-style: normal; margin-left: 4px; padding: 1px 6px; border-radius: 999px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,.12); color: #bbb; }
+#workChip .rate.r2 { background: #3ecf8e; color: #062; }
+#workChip .rate.r05 { background: rgba(255,120,90,.25); color: #ffb4a0; }

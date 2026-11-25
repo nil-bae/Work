@@ -5,7 +5,9 @@
 // 저장: Supabase 'wallets' 표 (없으면 이 브라우저에만)
 import { supa } from './net.js';
 
-export const WAGE = 10320;            // 원/시간 (2026년 최저임금)
+export const WAGE = 10320;            // 원/시간 (2026년 최저임금) — 기본 시급
+// 11-25 사용자 요청: 2층 업무 자리에서 일하면 2배, 일하지 않으면(자리에 앉아 일하는 중이 아니면) 1/2
+export const RATE = { desk2: 2, work: 1, idle: 0.5 };
 const MAX_SECS = 12 * 3600;            // 하루 최대 12시간
 const PAYDAY = 25;
 const WELCOME = 100000;                // 입사 축하금 (처음 한 번)
@@ -64,7 +66,7 @@ export function createMoney(api) {
   function settle() {
     const notes = [];
     const t = today();
-    if (w.day !== t) { if (w.day_secs > 0) notes.push(`📅 지난 근무일(${w.day.slice(5).replace('-', '/')}) 일급 ${won(Math.min(w.day_secs, MAX_SECS) / 3600 * WAGE)}이 급여에 쌓였어요.`); w.day = t; w.day_secs = 0; }
+    if (w.day !== t) { if (w.day_secs > 0) notes.push(`📅 지난 근무일(${w.day.slice(5).replace('-', '/')}) 일급 ${won(dayPay())}을 받았어요.`); w.day = t; w.day_secs = 0; }
     // 예전 '25일 월급'으로 쌓여 있던 급여는 바로 지갑으로 (이제는 일급이 일하는 대로 바로 들어옴)
     if (w.unpaid >= 1) { notes.push(`💸 그동안 쌓여 있던 급여 ${won(w.unpaid)}이 지갑에 들어왔어요! 이제 일급은 일하는 대로 바로 들어와요.`); w.cash += w.unpaid; w.unpaid = 0; }
     const days = dayDiff(w.sav_day || t, t);
@@ -91,8 +93,9 @@ export function createMoney(api) {
     return notes;
   }
   // 입구에서 보여 줄 오늘의 일급
-  const greeting = () => w ? `💰 오늘 근무 ${hm(w.day_secs)} · 오늘의 일급 ${won(dayPay())} (시급 ${won(WAGE)}, 일하는 대로 지갑에 바로 들어와요) · 지갑 ${won(w.cash)}` : '';
-  const dayPay = () => Math.min(w.day_secs, MAX_SECS) / 3600 * WAGE;
+  const greeting = () => w ? `💰 오늘 근무 ${hm(w.day_secs)} · 오늘의 일급 ${won(dayPay())} (2층에서 일하면 시급 ${won(WAGE * RATE.desk2)} · 그냥 있으면 ${won(WAGE * RATE.idle)}, 일하는 대로 지갑에 바로 들어와요) · 지갑 ${won(w.cash)}` : '';
+  // 오늘 일급: 시급이 일하는 방식에 따라 달라서 실제로 받은 돈을 지갑(stocks.__daypay = [날짜, 금액])에 따로 적어 둠
+  const dayPay = () => { const d = w.stocks?.__daypay; return d && d[0] === w.day ? d[1] : Math.min(w.day_secs, MAX_SECS) / 3600 * WAGE; };
 
   // 1초마다: 화면이 켜져 있고 사옥 안에 있으면 근무 시간 +1초
   // 실제 지난 시간(시계)으로 더함 → 다른 탭에 다녀와도(화면이 숨어 타이머가 느려져도) 멈추지 않고 이어짐
@@ -104,7 +107,8 @@ export function createMoney(api) {
     const notes = settle(); notes.forEach((n) => api.toast(n));
     const add = Math.min(gap > 300 ? 0 : gap, MAX_SECS - w.day_secs);
     if (add > 0) {
-      w.day_secs += add; w.cash += (WAGE / 3600) * add; dirty = true; // 일급: 일한 만큼 바로 지갑으로
+      const rate = api.rate?.() ?? 1; // 지금 하는 일에 따라 2배 · 1배 · 0.5배
+      w.day_secs += add; w.stocks.__daypay = [w.day, dayPay() + (WAGE / 3600) * add * rate]; w.cash += (WAGE / 3600) * add * rate; dirty = true; // 일급: 일한 만큼 바로 지갑으로
       if (w.day_secs >= MAX_SECS) api.toast(`⏰ 오늘 근무 12시간을 채웠어요! 오늘 일급은 ${won(dayPay())}이에요. 푹 쉬세요 😊`);
     }
     if (document.hidden) { if (dirty && ++tick % 2 === 0) save(); return; }
@@ -116,7 +120,7 @@ export function createMoney(api) {
   addEventListener('visibilitychange', () => { if (document.hidden && dirty) save(); });
   addEventListener('pagehide', () => { if (dirty) save(); });
 
-  function chip() { if (w) $('workChip').innerHTML = `⏱ <b>${hms(Math.min(w.day_secs, MAX_SECS))}</b> · ${won(dayPay())}`; }
+  function chip() { if (!w) return; const r = api.rate?.() ?? 1; $('workChip').innerHTML = `⏱ <b>${hms(Math.min(w.day_secs, MAX_SECS))}</b> · ${won(dayPay())} <i class="rate r${String(r).replace('.', '')}">${r === 2 ? '×2' : r === 1 ? '×1' : '×½'}</i>`; }
 
   // ---------- 지갑 ----------
   const stockValue = () => STOCKS.reduce((s, st) => s + (w.stocks[st.code]?.q || 0) * price(st), 0);
@@ -134,7 +138,7 @@ export function createMoney(api) {
         <dt>💎 총 자산</dt><dd><b>${won(w.cash + w.savings + sv)}</b></dd>
       </dl>
       <button type="button" class="link" id="walletItems" style="display:block;margin:4px 0 10px">👜 내 아이템 보기 · 착용하기</button>
-      <p class="sub">시급 ${won(WAGE)}(2026년 최저임금) · 사옥에 접속해 있는 동안 세요(다른 탭에 가 있어도 OK) · 일급은 일하는 대로 <b>바로 지갑</b>에 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
+      <p class="sub">시급: <b>2층 자리에서 일하기 ${won(WAGE * RATE.desk2)}</b> · 다른 층 자리에서 일하기 ${won(WAGE)} · 일하지 않을 때 ${won(WAGE * RATE.idle)} (지금 <b>${won(WAGE * (api.rate?.() ?? 1))}</b>) · 사옥에 접속해 있는 동안 세요(다른 탭에 가 있어도 OK) · 일급은 일하는 대로 <b>바로 지갑</b>에 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
   }
   function openWallet() { if (!w) return; renderWallet(); api.openModal('walletModal'); }
   document.addEventListener('click', (e) => { if (e.target?.id === 'walletItems') api.openItems?.(); });
