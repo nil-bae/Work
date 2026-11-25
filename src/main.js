@@ -216,7 +216,7 @@ function showToast(text, onClick) {
 }
 // 💰 월급 · 지갑 · 💹 투자
 const money = createMoney({ $, me, openItems: () => shopUI.open('mine'), openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t, () => money.openWallet()),
-  atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), rate: () => (player.sit && player.working ? 2 : 0.5) /* 💼 '일하기'를 누르고 일하는 중이면 무조건 2배 · 아니면 1/2 */, get board() { return bld.investBoard; } });
+  atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), rate: () => (player.sit && player.working ? 2 : 1) /* 💼 '일하기' 중이면 2배 · 아니면 기본 시급 (11-25 반발로 1/2 차감은 없앰) */, get board() { return bld.investBoard; } });
 $('workChip').onclick = () => money.openWallet();
 // 👜 WORK BOUTIQUE (1층 정원 동쪽): 아이템 사서 착용
 const shop = createShop(bld.floors[0].colliders);

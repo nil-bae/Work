@@ -448,6 +448,5 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 /* 💼 시급 배수 표시 */
 #workChip .rate { font-style: normal; margin-left: 4px; padding: 1px 6px; border-radius: 999px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,.12); color: #bbb; }
 #workChip .rate.r2 { background: #3ecf8e; color: #062; }
-#workChip .rate.r05 { background: rgba(255,120,90,.25); color: #ffb4a0; }
 #raceSpeed { position: absolute; inset: 0; pointer-events: none; z-index: 5; background: repeating-conic-gradient(from 0deg at 50% 55%, rgba(255,255,255,.0) 0deg 5deg, rgba(180,240,255,.32) 5deg 5.6deg, rgba(255,255,255,0) 5.6deg 11deg); -webkit-mask: radial-gradient(ellipse at 50% 55%, transparent 38%, #000 75%); mask: radial-gradient(ellipse at 50% 55%, transparent 38%, #000 75%); animation: raceZoom .25s linear infinite; }
 @keyframes raceZoom { from { transform: scale(1); opacity: .9; } to { transform: scale(1.06); opacity: .6; } }

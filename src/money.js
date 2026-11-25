@@ -7,7 +7,7 @@ import { supa } from './net.js';
 
 export const WAGE = 10320;            // 원/시간 (2026년 최저임금) — 기본 시급
 // 11-25 사용자 요청: 2층 업무 자리에서 일하면 2배, 일하지 않으면(자리에 앉아 일하는 중이 아니면) 1/2
-export const RATE = { desk2: 2, idle: 0.5 }; // 11-25: '일하기' 중이면 무조건 2배 (일하기 자리는 2층에만 있음)
+export const RATE = { desk2: 2, idle: 1 }; // 11-25: '일하기' 중이면 무조건 2배 (일하기 자리는 2층에만 있음)
 const MAX_SECS = 12 * 3600;            // 하루 최대 12시간
 const PAYDAY = 25;
 const WELCOME = 100000;                // 입사 축하금 (처음 한 번)
@@ -93,7 +93,7 @@ export function createMoney(api) {
     return notes;
   }
   // 입구에서 보여 줄 오늘의 일급
-  const greeting = () => w ? `💰 오늘 근무 ${hm(w.day_secs)} · 오늘의 일급 ${won(dayPay())} (💻 일하기 중 시급 ${won(WAGE * RATE.desk2)} · 그냥 있으면 ${won(WAGE * RATE.idle)}, 일하는 대로 지갑에 바로 들어와요) · 지갑 ${won(w.cash)}` : '';
+  const greeting = () => w ? `💰 오늘 근무 ${hm(w.day_secs)} · 오늘의 일급 ${won(dayPay())} (💻 일하기 중 시급 ${won(WAGE * RATE.desk2)} · 그냥 있어도 ${won(WAGE * RATE.idle)}, 일하는 대로 지갑에 바로 들어와요) · 지갑 ${won(w.cash)}` : '';
   // 오늘 일급: 시급이 일하는 방식에 따라 달라서 실제로 받은 돈을 지갑(stocks.__daypay = [날짜, 금액])에 따로 적어 둠
   const dayPay = () => { const d = w.stocks?.__daypay; return d && d[0] === w.day ? d[1] : Math.min(w.day_secs, MAX_SECS) / 3600 * WAGE; };
 
@@ -120,7 +120,7 @@ export function createMoney(api) {
   addEventListener('visibilitychange', () => { if (document.hidden && dirty) save(); });
   addEventListener('pagehide', () => { if (dirty) save(); });
 
-  function chip() { if (!w) return; const r = api.rate?.() ?? 1; $('workChip').innerHTML = `⏱ <b>${hms(Math.min(w.day_secs, MAX_SECS))}</b> · ${won(dayPay())} <i class="rate r${String(r).replace('.', '')}">${r === 2 ? '×2' : '×½'}</i>`; }
+  function chip() { if (!w) return; const r = api.rate?.() ?? 1; $('workChip').innerHTML = `⏱ <b>${hms(Math.min(w.day_secs, MAX_SECS))}</b> · ${won(dayPay())} <i class="rate r${String(r).replace('.', '')}">${r === 2 ? '×2' : '×1'}</i>`; }
 
   // ---------- 지갑 ----------
   const stockValue = () => STOCKS.reduce((s, st) => s + (w.stocks[st.code]?.q || 0) * price(st), 0);
