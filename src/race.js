@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { canvasTex } from './building.js';
 
 export const RACE = { A: 60, R: 14, half: 7.2, laps: 2, lobby: 15, count: 3, limit: 240, kiosk: { x: 4.8, z: 28.7 } };
-const VMAX = 10.5, VBOOST = 16, ACC = 9, BOOST_T = 1.6;
+const VMAX = 15, VBOOST = 30, ACC = 13, BOOST_T = 1.6, ITEM_T = 3, ITEM_BACK = 5; // 11-25 '너무 느리다' → 기본 15m/s, 아이템 · 부스터는 2배(30m/s)
 const PAY = [50000, 30000, 10000], PAY_FINISH = 5000, PAY_PB = 10000, PAY_DAY = 100000;
 const GY = -0.3; // 도로 높이 (world.js GROUND_Y)
 
@@ -40,7 +40,10 @@ function project(x, z, hint = -1) {
   return { i: bi, s: p.s, lat, p };
 }
 const at = (s) => { const P = LINE.pts, n = P.length; s = ((s % LINE.L) + LINE.L) % LINE.L; let lo = 0, hi = n - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (P[m].s <= s) lo = m; else hi = m - 1; } return P[lo]; };
-const PADS = [114, 228, 342, 410].map((s) => at(s)); // ⚡ 부스터 발판 (곧은 길 가운데쯤)
+const PADS = [140, 254, 368, 30].map((s) => at(s)); // ⚡ 부스터 발판 (곧은 길 가운데쯤)
+// 🎁 아이템 상자: 곧은 길마다 한 줄에 3개 (먹으면 3초 동안 2배 속도, 5초 뒤 다시 생김 — 각자 화면 기준)
+const ITEMS = [];
+for (const s0 of [100, 214, 328, 432]) for (const lat of [-4.2, 0, 4.2]) { const p = at(s0); ITEMS.push({ x: p.x + p.tz * lat, z: p.z - p.tx * lat, back: 0 }); }
 
 // ---- 코스 꾸미기: 출발 아치 · 체크무늬 선 · 부스터 발판 · 모서리 고깔 · 정문 옆 출발대 ----
 export function createRaceTrack(colliders) {
@@ -70,6 +73,10 @@ export function createRaceTrack(colliders) {
     const a = new THREE.Mesh(new THREE.PlaneGeometry(4, 5.6), padMat); a.rotation.x = -Math.PI / 2; a.rotation.z = Math.PI; a.position.y = 0.01; g.add(a);
     group.add(g); return g;
   });
+  // 🎁 아이템 상자 (빙글빙글 도는 무지개 상자 + ⚡)
+  const boxTex = canvasTex(128, 128, (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#ff5fa2'); g.addColorStop(0.5, '#ffd84a'); g.addColorStop(1, '#5fd2ff'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, w - 10, h - 10); ctx.font = '900 78px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', w / 2, h / 2 + 4); });
+  const boxMat = new THREE.MeshStandardMaterial({ map: boxTex, emissive: 0xffffff, emissiveMap: boxTex, emissiveIntensity: 0.55, roughness: 0.3, transparent: true, opacity: 0.95 });
+  const boxes = ITEMS.map((it) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), boxMat); b.position.set(it.x, GY + 0.9, it.z); group.add(b); it.mesh = b; return b; });
   // 모서리 고깔 (바깥 줄 + 안쪽 꼭짓점)
   const cones = [];
   for (const [cx, cz, a0] of [[A - R, A - R, 0], [A - R, -(A - R), -Math.PI / 2], [-(A - R), -(A - R), -Math.PI], [-(A - R), A - R, Math.PI / 2]]) {
@@ -95,7 +102,7 @@ export function createRaceTrack(colliders) {
   board.position.set(K.x, 1.45, K.z); board.rotation.y = Math.PI; group.add(board);
   const back = board.clone(); back.rotation.y = 0; back.position.z += 0.01; group.add(back);
   colliders.push({ x1: K.x - 0.8, z1: K.z - 0.1, x2: K.x + 0.8, z2: K.z + 0.1, tall: true });
-  return { group, update(t) { for (const p of pads) p.children[1].material.color.setScalar(1.3 + Math.sin(t * 6) * 0.4); } };
+  return { group, update(t) { for (const p of pads) p.children[1].material.color.setScalar(1.3 + Math.sin(t * 6) * 0.4); boxes.forEach((b, i) => { const it = ITEMS[i]; b.visible = Date.now() >= it.back; b.rotation.set(0.5, t * 2 + i, 0.3); b.position.y = GY + 0.9 + Math.sin(t * 3 + i) * 0.12; }); } };
 }
 
 // ---- 레이스 진행 ----
@@ -184,7 +191,7 @@ export function createRace(api) {
     if (!st.mine) return;
     st.mine = false; st.phase = 'idle';
     const p = api.player(); p.x = 0; p.z = 28.2; p.ry = Math.PI; api.cam.yaw = 0; api.cam.dist = 3.4; api.cam.pitch = 0.28;
-    $('raceHud').hidden = true; $('raceCount').hidden = true; $('raceQuit').hidden = true;
+    $('raceHud').hidden = true; $('raceCount').hidden = true; $('raceQuit').hidden = true; $('raceSpeed').hidden = true;
     if (!silent) { const e = { t: 'race', k: 'leave', id: me.id, name: me.name }; api.send(e); }
     api.changed();
   }
@@ -252,8 +259,10 @@ export function createRace(api) {
     st.hint = pr.i;
     let ds = pr.s - st.lastS; if (ds > LINE.L / 2) ds -= LINE.L; if (ds < -LINE.L / 2) ds += LINE.L;
     st.prog += ds; st.lastS = pr.s;
+    // 🎁 아이템 상자 먹기 → 3초 동안 2배
+    for (const it of ITEMS) if (t >= it.back && Math.hypot(p.x - it.x, p.z - it.z) < 1.3) { it.back = t + ITEM_BACK * 1000; st.boost = Math.max(st.boost, ITEM_T); api.beep(1760, 0.18); st.flash = t; break; }
     // 부스터 발판
-    if (st.boost <= 0) for (const q of PADS) if (Math.hypot(p.x - q.x, p.z - q.z) < 2.6) { st.boost = BOOST_T; api.beep(1500, 0.15); api.toast2?.('⚡ 부스터!'); break; }
+    if (st.boost <= 0) for (const q of PADS) if (Math.hypot(p.x - q.x, p.z - q.z) < 2.6) { st.boost = BOOST_T; api.beep(1500, 0.15); break; }
     // 카메라는 뒤에서 따라옴
     let dy = p.ry + Math.PI - cam.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     cam.yaw += dy * Math.min(1, dt * 3);
@@ -270,9 +279,10 @@ export function createRace(api) {
   }
   function hud(t) {
     const el = $('raceHud'); el.hidden = false;
+    $('raceSpeed').hidden = !(st.boost > 0 && st.phase === 'run'); // ⚡ 2배 속도일 때 화면 가장자리 속도선
     const lap = Math.min(RACE.laps, Math.max(1, Math.floor(st.prog / LINE.L) + 1));
     const ms = st.phase === 'done' && st.myResult ? st.myResult.ms : Math.max(0, t - st.go);
-    el.innerHTML = `🏁 <b>${lap}/${RACE.laps}</b>바퀴 · <b>${rank()}</b>/${st.racers.length}위 · ${fmt(ms)}${st.boost > 0 ? ' · <b class="boost">⚡ 부스터</b>' : ''}`;
+    el.innerHTML = `🏁 <b>${lap}/${RACE.laps}</b>바퀴 · <b>${rank()}</b>/${st.racers.length}위 · ${fmt(ms)}${st.boost > 0 ? ' · <b class="boost">⚡ 2배 속도!</b>' : ''}`;
   }
   $('raceQuit').onclick = () => { if (confirm('레이스를 그만두고 회사로 돌아갈까요?')) quit(); };
   return {
