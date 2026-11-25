@@ -294,6 +294,19 @@ const AM = {
   leatherBlack: new THREE.MeshStandardMaterial({ color: 0x141418, roughness: 0.35, metalness: 0.1 }),
   tan: new THREE.MeshStandardMaterial({ color: 0xd8b48a, roughness: 0.55 }),
   champagne: new THREE.MeshStandardMaterial({ color: 0xf0d9a8, roughness: 0.2, metalness: 0.7, emissive: 0x2a1e08 }),
+  // 👜 부티크 2차 (11-25)
+  nylon: new THREE.MeshStandardMaterial({ color: 0x16161a, roughness: 0.28, metalness: 0.25 }),
+  silver: new THREE.MeshStandardMaterial({ color: 0xd9dde3, roughness: 0.2, metalness: 0.9 }),
+  knitOat: new THREE.MeshStandardMaterial({ color: 0xe8dcc4, roughness: 1 }),
+  knitNavy: new THREE.MeshStandardMaterial({ color: 0x1f2a4a, roughness: 0.95 }),
+  silk: new THREE.MeshStandardMaterial({ color: 0xb3122e, roughness: 0.22, metalness: 0.15, side: THREE.DoubleSide }),
+  lbd: new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.6, side: THREE.DoubleSide }),
+  pearl: new THREE.MeshStandardMaterial({ color: 0xfbf6ee, roughness: 0.15, metalness: 0.1, emissive: 0x1a1814 }),
+  navy: new THREE.MeshStandardMaterial({ color: 0x1c2747, roughness: 0.7 }),
+  tux: new THREE.MeshStandardMaterial({ color: 0x121216, roughness: 0.6 }),
+  satin: new THREE.MeshStandardMaterial({ color: 0x050507, roughness: 0.15, metalness: 0.3 }),
+  shirtW: new THREE.MeshStandardMaterial({ color: 0xf7f7f4, roughness: 0.7 }),
+  tieRed: new THREE.MeshStandardMaterial({ color: 0x8e1b2c, roughness: 0.5 }),
   // 🎄 크리스마스 출석 한정판
   antler: new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.7 }),
   felt: new THREE.MeshStandardMaterial({ color: 0xa8713f, roughness: 1 }),
@@ -311,6 +324,16 @@ const AM = {
   ice: new THREE.MeshStandardMaterial({ color: 0xd8f1ff, roughness: 0.08, metalness: 0.35, emissive: 0x2f78c8, emissiveIntensity: 0.55, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
   star: new THREE.MeshStandardMaterial({ color: 0xffd447, roughness: 0.22, metalness: 0.65, emissive: 0xc88a00, emissiveIntensity: 0.8 }),
 };
+// 정장 앞: 흰 셔츠 V + 양쪽 라펠 (수트 · 턱시도)
+function suitFront(add, lapel) {
+  add(new THREE.BoxGeometry(0.1, 0.16, 0.01), AM.shirtW, 0, 0.475, 0.208, -0.12, 0, 0);
+  for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.05, 0.21, 0.014), lapel, e * 0.05, 0.455, 0.215, -0.12, 0, e * 0.42);
+}
+// 새 옷 몸통: 기본 상의(사원증 · 후드 주머니 등)가 비치지 않게 한 치수 크게 + 어깨 덮개. top = 위쪽 반지름, h = 높이(아래로)
+function shell(add, mat, h = 0.3) { // 앞뒤로 조금 더 두껍게(납작한 주머니 · 무늬 모서리까지 덮음)
+  add(new THREE.CylinderGeometry(0.178, 0.178 + h * 0.113, h, 24), mat, 0, 0.56 - h / 2, 0, 0, 0, 0, 1, 1, 1.1);
+  add(new THREE.SphereGeometry(0.178, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat, 0, 0.555, 0, 0, 0, 0, 1, 0.3, 1.1);
+}
 // 두 점을 잇는 막대 (사슴뿔 · 눈꽃 가지)
 function rod(g, a, b, r, mat, r2 = r) {
   const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A);
@@ -484,6 +507,58 @@ export function makeAcc(id) {
       for (let i = 0; i < 12; i++) { const t = i / 11; add(new THREE.TorusGeometry(0.012, 0.004, 4, 8), AM.gold, 0.21 - t * 0.33, 0.36 + t * 0.2, 0.06 + Math.sin(t * Math.PI) * 0.1, 0, i * 0.8, 0); }
       break;
     }
+    // ----- 👜 부티크 2차 (11-25) -----
+    case 'pradybag': // 프라디 나일론 호보백: 반짝이는 검정 나일론 반달 가방 + 은색 명판 (어깨에 멤)
+      add(new THREE.SphereGeometry(0.1, 20, 14), AM.nylon, 0.215, 0.3, 0.05, 0, 0, 0.15, 1.15, 0.7, 0.45);
+      add(new THREE.BoxGeometry(0.05, 0.022, 0.01), AM.silver, 0.222, 0.29, 0.095, 0, 0, 0.15);
+      add(new THREE.TorusGeometry(0.085, 0.012, 6, 20, Math.PI), AM.nylon, 0.205, 0.33, 0.05, 0, 0, 0.15, 1, 1.25, 1);
+      { const P = (t) => [0.2 - t * 0.31, 0.37 + t * 0.19, 0.05 + Math.sin(t * Math.PI) * 0.13]; for (let i = 0; i < 8; i++) rod(g, P(i / 8), P((i + 1) / 8), 0.013, AM.nylon); } // 어깨끈 (이어진 나일론 끈)
+      break;
+    case 'gucicardi': // 구치 니트 가디건: 오트밀 니트 + 네이비 테두리 + 금단추
+      shell(add, AM.knitOat);
+      add(new THREE.TorusGeometry(0.212, 0.02, 6, 26), AM.knitNavy, 0, 0.27, 0, Math.PI / 2, 0, 0, 1, 1.1, 1);
+      for (const e of [-1, 1]) {
+        add(new THREE.BoxGeometry(0.022, 0.19, 0.012), AM.knitNavy, e * 0.026, 0.36, 0.214, -0.12, 0, 0);            // 앞 여밈 (세로)
+        add(new THREE.BoxGeometry(0.022, 0.12, 0.012), AM.knitNavy, e * 0.05, 0.5, 0.2, -0.12, 0, e * 0.42);           // V넥
+      }
+      add(new THREE.BoxGeometry(0.06, 0.09, 0.01), AM.shirtW, 0, 0.5, 0.198, -0.12, 0, 0);
+      for (const y of [0.45, 0.39, 0.33]) add(new THREE.SphereGeometry(0.012, 10, 8), AM.gold, 0, y, 0.21 + (0.56 - y) * 0.113 - 0.012);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.055, 0.04, 0.012), AM.knitNavy, e * 0.1, 0.34, 0.208, -0.1, e * 0.5, 0);
+      g.userData.sleeve = { mat: AM.knitOat, r: 0.058, cuff: AM.knitNavy };
+      break;
+    case 'reddress': // 레드 실크 롱 드레스 (발목까지 + 허리 리본)
+      shell(add, AM.silk, 0.21);
+      add(new THREE.CylinderGeometry(0.2, 0.32, 0.36, 28, 1, true), AM.silk, 0, 0.17, 0, 0, 0, 0, 1, 1, 1.1);
+      add(new THREE.TorusGeometry(0.2, 0.012, 6, 26), AM.silk, 0, 0.35, 0, Math.PI / 2, 0, 0, 1, 1.1, 1);
+      add(new THREE.SphereGeometry(0.035, 10, 8), AM.silk, 0.1, 0.35, 0.19, 0, 0.6, 0.6, 1.3, 0.7, 0.6);
+      add(new THREE.SphereGeometry(0.035, 10, 8), AM.silk, 0.145, 0.35, 0.16, 0, 0.6, -0.6, 1.3, 0.7, 0.6);
+      add(new THREE.BoxGeometry(0.02, 0.15, 0.012), AM.silk, 0.135, 0.27, 0.19, 0.1, 0.6, 0.2);
+      break;
+    case 'blackdress': // 블랙 미니 드레스 + 진주 목걸이
+      shell(add, AM.lbd, 0.21);
+      add(new THREE.CylinderGeometry(0.2, 0.26, 0.16, 26, 1, true), AM.lbd, 0, 0.27, 0, 0, 0, 0, 1, 1, 1.1);
+      add(new THREE.TorusGeometry(0.2, 0.012, 6, 26), AM.satin, 0, 0.35, 0, Math.PI / 2, 0, 0, 1, 1.1, 1);
+      for (let i = 0; i < 17; i++) { const a = Math.PI * (0.1 + (i / 16) * 0.8); add(new THREE.SphereGeometry(0.016, 10, 8), AM.pearl, Math.cos(a) * 0.13, 0.598 - Math.sin(a) * 0.012, Math.sin(a) * 0.145); } // 진주 목걸이 (어깨 위)
+      add(new THREE.SphereGeometry(0.022, 12, 10), AM.pearl, 0, 0.565, 0.175);
+      break;
+    case 'navysuit': // 네이비 더블 수트: 라펠 + 금단추 4개 + 흰 행커치프 + 넥타이
+      shell(add, AM.navy);
+      suitFront(add, AM.navy);
+      add(new THREE.BoxGeometry(0.026, 0.13, 0.01), AM.tieRed, 0, 0.47, 0.218, -0.12, 0, 0);
+      add(new THREE.BoxGeometry(0.032, 0.022, 0.014), AM.tieRed, 0, 0.535, 0.21, -0.12, 0, 0);
+      for (const y of [0.38, 0.32]) for (const e of [-1, 1]) add(new THREE.SphereGeometry(0.012, 10, 8), AM.gold, e * 0.045, y, 0.218 + (0.56 - y) * 0.113 - 0.012);
+      add(new THREE.BoxGeometry(0.045, 0.026, 0.012), AM.shirtW, -0.105, 0.48, 0.196, -0.12, -0.5, 0.15);
+      g.userData.sleeve = { mat: AM.navy, r: 0.058, cuff: AM.shirtW };
+      break;
+    case 'tuxedo': // 블랙 턱시도: 새틴 라펠 + 나비넥타이 + 흰 셔츠
+      shell(add, AM.tux);
+      suitFront(add, AM.satin);
+      add(new THREE.SphereGeometry(0.013, 8, 6), AM.satin, 0, 0.535, 0.213);
+      for (const e of [-1, 1]) add(new THREE.ConeGeometry(0.024, 0.05, 4), AM.satin, e * 0.026, 0.535, 0.211, 0, 0, e * Math.PI / 2);
+      for (const y of [0.48, 0.44]) add(new THREE.SphereGeometry(0.007, 8, 6), AM.black, 0, y, 0.218);
+      add(new THREE.SphereGeometry(0.013, 10, 8), AM.satin, 0, 0.35, 0.23);
+      g.userData.sleeve = { mat: AM.tux, r: 0.058, cuff: AM.shirtW };
+      break;
     // ----- 🎄 크리스마스 출석 한정판 (부티크에서 안 팖, advent.js) -----
     case 'rudolph': { // 루돌프 머리띠: 통통한 펠트 사슴뿔 + 작은 사슴 귀 + 방울 + 호랑가시
       add(new THREE.TorusGeometry(0.27, 0.014, 6, 32, Math.PI), AM.antler, 0, H0 + 0.0, 0.0, 0, 0, 0, 1.04, 1.12, 1); // 귀에서 귀로 넘어가는 띠

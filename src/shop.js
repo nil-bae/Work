@@ -23,12 +23,18 @@ export const ITEMS = [
   { id: 'backpack', name: '가죽 백팩', icon: '🎒', slot: 'bag', price: 180000, cat: 'bag' },
   { id: 'clutch', name: '샴페인 골드 클러치', icon: '👛', slot: 'bag', price: 220000, cat: 'bag' },
   { id: 'chainbag', name: '퀼팅 체인백', icon: '🖤', slot: 'bag', price: 350000, cat: 'bag' },
+  { id: 'pradybag', name: '프라디 나일론 호보백', icon: '🖤', slot: 'bag', price: 420000, cat: 'bag' },
   // 👗 옷
   { id: 'muffler', name: '캐시미어 머플러', icon: '🧣', slot: 'neck', price: 70000, cat: 'wear' },
   { id: 'tweed', name: '핑크 트위드 재킷', icon: '🧥', slot: 'body', price: 280000, cat: 'wear' },
   { id: 'cape', name: '레드 벨벳 망토', icon: '🦸', slot: 'body', price: 300000, cat: 'wear' },
   { id: 'dress', name: '샴페인 파티 드레스', icon: '👗', slot: 'body', price: 380000, cat: 'wear' },
   { id: 'furcoat', name: '화이트 퍼 코트', icon: '🤍', slot: 'body', price: 450000, cat: 'wear' },
+  { id: 'gucicardi', name: '구치 니트 가디건', icon: '🧶', slot: 'body', price: 390000, cat: 'wear' },
+  { id: 'blackdress', name: '블랙 미니 드레스 & 진주', icon: '🖤', slot: 'body', price: 360000, cat: 'wear' },
+  { id: 'reddress', name: '레드 실크 롱 드레스', icon: '💃', slot: 'body', price: 520000, cat: 'wear' },
+  { id: 'navysuit', name: '네이비 더블 수트', icon: '🤵', slot: 'body', price: 480000, cat: 'wear' },
+  { id: 'tuxedo', name: '블랙 턱시도', icon: '🎩', slot: 'body', price: 550000, cat: 'wear' },
 ];
 // 🎄 크리스마스 출석 한정판: 팔지 않고 진열만(출석해야 받음) — advent.js
 for (const r of XMAS_REWARDS) ITEMS.push({ id: r.id, name: r.name, icon: r.icon, slot: r.slot, price: 0, cat: 'xmas', limited: r.xday ? '12/25 당일 출석' : `출석 ${r.n}일` });
