@@ -424,3 +424,10 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 .item-pick button.on::after { content: '✔ 착용 중'; font-size: 10px; }
 .item-pick .xm { border-color: rgba(214,40,60,.45); }
 .item-pick p { grid-column: 1 / -1; margin: 0; font-size: 13px; opacity: .7; line-height: 1.5; }
+
+/* 🛴 킥보드 타기 버튼 (킥보드가 있을 때만) */
+#btnKick { position: absolute; right: 22px; bottom: 240px; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); background: rgba(30,34,44,.82); color: #fff; font-size: 26px; line-height: 1; display: grid; place-content: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; box-shadow: 0 4px 14px rgba(0,0,0,.3); z-index: 5; }
+#btnKick span { font-size: 11px; font-weight: 700; }
+#btnKick.on { background: linear-gradient(135deg, #3ecf8e, #2ec4d6); border-color: #fff; }
+#btnKick:active { transform: scale(.9); }
+@media (hover: hover) and (pointer: fine) { #btnKick { bottom: 120px; } }

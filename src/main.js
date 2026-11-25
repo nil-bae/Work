@@ -231,13 +231,35 @@ const snowFight = createSnowFight({
   toast: (t) => toast(t, null), sys: (t) => sysMessage(t),
   thump: () => playThump(0.5), whoosh: () => playBeep(520, 0.05), ding: () => playBeep(1180, 0.1),
 });
+$('btnKick').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); toggleKick(); });
 $('btnSnow').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); snowFight.throw(); });
 const atShop = () => mode === 'office' && player.floor === 0 && shop.inside(player.x, player.z);
 const shopUI = createShopUI({ $, money, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => playBeep(880, 0.15), atShop, changed: () => applyWear(), openXmas: () => advent.open() });
 // 🎄 크리스마스 출석 (들어올 때 하루 한 번 도장 → 한정판 선물)
 const advent = createXmas({ $, money, me, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => { playBeep(988, 0.12); setTimeout(() => playBeep(1319, 0.18), 130); }, changed: () => applyWear() });
 function adventCheckIn() { if (!$('newsModal').hidden) { setTimeout(adventCheckIn, 500); return; } if (advent.checkIn()) advent.open(); }
-function applyWear() { me.acc = Object.values(money.wear()); myAvatar?.setAcc(me.acc); pv.av?.setAcc(me.acc); sendState(true); }
+function applyWear() {
+  const w = money.wear();
+  me.acc = Object.entries(w).filter(([k, v]) => k !== 'ride' && v).map(([, v]) => v); me.kick = w.ride || null; // 🛴 탈것은 몸에 붙이지 않고 발밑에
+  myAvatar?.setAcc(me.acc); pv.av?.setAcc(me.acc); kickUI(); sendState(true);
+}
+// 🛴 킥보드: '착용'이 곧 타기. 앉기 · 결투 · 게임 · 썰매 중에는 잠깐 숨겼다가 끝나면 다시 탐 (그때는 저장 안 함)
+const KICK_IDS = ['kickblack', 'kickmint', 'kickgold'];
+let lastKick = null;
+function kickUI() {
+  const own = money.ready && money.items().some((id) => KICK_IDS.includes(id));
+  $('btnKick').hidden = !own;
+  $('btnKick').classList.toggle('on', !!me.kick);
+  $('btnKick').querySelector('span').textContent = me.kick ? '내리기' : '타기';
+}
+function toggleKick() {
+  if (!money.ready) return;
+  const owned = money.items().filter((id) => KICK_IDS.includes(id));
+  if (!owned.length) { toast('🛴 1층 WORK BOUTIQUE에서 킥보드를 사면 탈 수 있어요!', null); return; }
+  if (me.kick) { lastKick = me.kick; money.setWear('ride', null); }
+  else money.setWear('ride', owned.includes(lastKick) ? lastKick : owned[owned.length - 1]);
+  applyWear(); playBeep(me.kick ? 990 : 660, 0.08);
+}
 let clerkGreetAt = -99;
 // 3층 투자 상담원 (NPC)
 const advisor = new Avatar('💹 투자 상담원', '#2d3b55', 'f', '21100');
@@ -490,6 +512,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Enter') { e.preventDefault(); setChatOpen(true); $('chatInput').focus(); }
   if (e.code === 'KeyE') interact();
   if (e.code === 'KeyF' && snowFight.inField) { e.preventDefault(); if (!e.repeat) snowFight.throw(); }
+  if (e.code === 'KeyR' && !e.repeat && myAvatar) toggleKick();
   if (e.code === 'Space') { e.preventDefault(); doJump(); }
   if (e.code === 'Escape') closeModals();
 });
@@ -618,7 +641,7 @@ function updatePlayer(dt) {
     let mx = fx * f + rx * s, mz = fz * f + rz * s;
     const l = Math.hypot(mx, mz) || 1;
     mx /= l; mz /= l;
-    const speed = (run ? 6.2 : 3.4) * mag;
+    const speed = (myAvatar.kick ? (run ? 9 : 6.6) : run ? 6.2 : 3.4) * mag; // 🛴 킥보드는 두 배쯤
     const [nx, nz] = collide(player.x + mx * speed * dt, player.z + mz * speed * dt);
     moved = Math.hypot(nx - player.x, nz - player.z);
     player.x = nx; player.z = nz;
@@ -632,7 +655,7 @@ function updatePlayer(dt) {
       if (moveTarget.path?.length) { const [nx, nz] = moveTarget.path.shift(); moveTarget.x = nx; moveTarget.z = nz; moveTarget.stuck = 0; }
       else finishTarget();
     } else {
-      const step = Math.min(d, 3.4 * dt);
+      const step = Math.min(d, (myAvatar.kick ? 6.6 : 3.4) * dt);
       const [nx, nz] = collide(player.x + (dx / d) * step, player.z + (dz / d) * step);
       moved = Math.hypot(nx - player.x, nz - player.z);
       player.x = nx; player.z = nz;
@@ -647,6 +670,7 @@ function updatePlayer(dt) {
     }
   }
   player.speed = dt > 0 ? moved / dt : 0;
+  { const k = me.kick && !player.sit && !busy() ? me.kick : null; if (k !== (myAvatar.kickId || null)) { myAvatar.setKick(k); sendState(true); } }
   { const g = player.sit ? 0 : groundAt(player.x, player.z, myAvatar.jy); if (Math.abs(g - myAvatar.ground) > 0.05 && performance.now() - lastSend > 300) { myAvatar.ground = g; sendState(true); } else myAvatar.ground = g; }
   placeAvatar(myAvatar, player);
   myAvatar.animate(dt, player.speed, now);
@@ -945,7 +969,7 @@ function sendState(force = false) {
   if (!force && !(movedEnough && t - lastSend > 300) && t - lastSend < 10000) return;
   lastSend = t;
   lastSent = { x: player.x, z: player.z, ry: player.ry };
-  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0 });
+  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '' });
 }
 
 function onState(p) {
@@ -986,6 +1010,7 @@ function onState(p) {
   if (peer.jc !== undefined && (p.jc || 0) > peer.jc) peer.av.jump();
   peer.jc = p.jc || 0;
   peer.av.ground = +p.hy || 0;
+  peer.av.setKick(p.kb || null);
 }
 const recentlyGone = new Map(); // 이름 → 나간 시각 (잠깐 다녀온 사람은 '들어왔어요'를 또 띄우지 않음)
 function removePeer(id, quiet = false) {

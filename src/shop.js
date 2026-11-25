@@ -24,6 +24,10 @@ export const ITEMS = [
   { id: 'clutch', name: '샴페인 골드 클러치', icon: '👛', slot: 'bag', price: 220000, cat: 'bag' },
   { id: 'chainbag', name: '퀼팅 체인백', icon: '🖤', slot: 'bag', price: 350000, cat: 'bag' },
   { id: 'pradybag', name: '프라디 나일론 호보백', icon: '🖤', slot: 'bag', price: 420000, cat: 'bag' },
+  // 🛴 탈것 (발밑에, 🛴 버튼 · R 키로 타고 내림)
+  { id: 'kickblack', name: '어반 블랙 킥보드', icon: '🛴', slot: 'ride', price: 150000, cat: 'ride' },
+  { id: 'kickmint', name: '민트 크림 킥보드', icon: '🛴', slot: 'ride', price: 220000, cat: 'ride' },
+  { id: 'kickgold', name: '크롬 골드 킥보드', icon: '✨', slot: 'ride', price: 400000, cat: 'ride' },
   // 👗 옷
   { id: 'muffler', name: '캐시미어 머플러', icon: '🧣', slot: 'neck', price: 70000, cat: 'wear' },
   { id: 'tweed', name: '핑크 트위드 재킷', icon: '🧥', slot: 'body', price: 280000, cat: 'wear' },
@@ -39,7 +43,7 @@ export const ITEMS = [
 // 🎄 크리스마스 출석 한정판: 팔지 않고 진열만(출석해야 받음) — advent.js
 for (const r of XMAS_REWARDS) ITEMS.push({ id: r.id, name: r.name, icon: r.icon, slot: r.slot, price: 0, cat: 'xmas', limited: r.xday ? '12/25 당일 출석' : `출석 ${r.n}일` });
 for (const it of ITEMS) it.cat ||= 'acc';
-const CATS = { all: '전체', xmas: '🎄 출석 한정', acc: '✨ 액세서리', bag: '👜 가방', wear: '👗 옷' };
+const CATS = { all: '전체', xmas: '🎄 출석 한정', acc: '✨ 액세서리', bag: '👜 가방', wear: '👗 옷', ride: '🛴 탈것' };
 export const SHOP = { x0: 17.5, x1: 25.5, z0: -8, z1: 0, door: [-5.1, -2.9], counter: { x: 23.1, z: -4 }, clerk: { x: 24.75, z: -4 } };
 const won = (n) => `${Math.round(n).toLocaleString('ko-KR')}원`;
 
@@ -184,13 +188,13 @@ export function createShopUI(api) {
     const list = (tab === 'buy' ? ITEMS : ITEMS.filter((it) => owned.includes(it.id))).filter((it) => cat === 'all' || it.cat === cat);
     $('shopGrid').innerHTML = list.length ? list.map((it) => {
       const has = owned.includes(it.id), on = wear[it.slot] === it.id;
-      const btn = !has && it.limited ? `<button data-xmas class="limited">🔒 ${it.limited}</button>` : !has ? `<button data-buy="${it.id}" ${money.cash() < it.price ? 'class="poor"' : ''}>${won(it.price)}</button>` : `<button data-wear="${it.id}" class="${on ? 'on' : ''}">${on ? '✔ 착용 중 (벗기)' : '착용하기'}</button>`;
+      const btn = !has && it.limited ? `<button data-xmas class="limited">🔒 ${it.limited}</button>` : !has ? `<button data-buy="${it.id}" ${money.cash() < it.price ? 'class="poor"' : ''}>${won(it.price)}</button>` : `<button data-wear="${it.id}" class="${on ? 'on' : ''}">${it.slot === 'ride' ? (on ? '✔ 타는 중 (내리기)' : '🛴 타기') : on ? '✔ 착용 중 (벗기)' : '착용하기'}</button>`;
       return `<li class="${on ? 'worn' : ''}"><i>${it.icon}</i><b>${it.name}</b><small>${ACC_SLOTS[it.slot]}${it.limited ? ' · 판매 안 함' : ''}${has ? ' · 보유' : ''}</small>${btn}</li>`;
     }).join('') : '<p class="sub">아직 산 아이템이 없어요. 부티크에서 골라 보세요!</p>';
     $('shopGrid').querySelectorAll('[data-buy]').forEach((b) => (b.onclick = () => buy(b.dataset.buy)));
     $('shopGrid').querySelectorAll('[data-xmas]').forEach((b) => (b.onclick = () => api.openXmas()));
     $('shopGrid').querySelectorAll('[data-wear]').forEach((b) => (b.onclick = () => toggle(b.dataset.wear)));
-    $('shopNote').textContent = api.atShop() ? '같은 부위(얼굴 · 머리 · 머리 위 · 등 · 옷 · 목 · 가방 · 신발)는 하나씩 착용할 수 있어요.' : '사는 건 부티크 안에서만 할 수 있어요. 산 아이템은 어디서든 착용할 수 있어요.';
+    $('shopNote').textContent = api.atShop() ? '같은 부위(얼굴 · 머리 · 머리 위 · 등 · 옷 · 목 · 가방 · 신발 · 탈것)는 하나씩 착용할 수 있어요. 킥보드는 🛴 버튼(컴퓨터는 R 키)으로 타고 내려요.' : '사는 건 부티크 안에서만 할 수 있어요. 산 아이템은 어디서든 착용할 수 있어요.';
   }
   function buy(id) {
     const it = ITEMS.find((x) => x.id === id); if (!it) return;
@@ -200,7 +204,7 @@ export function createShopUI(api) {
     if (!confirm(`${it.icon} ${it.name}을(를) ${won(it.price)}에 살까요?`)) return;
     if (!money.buy(it.id, it.price)) return;
     money.setWear(it.slot, it.id); api.changed();
-    api.sys(`🛍️ ${it.name}을(를) 샀어요! 바로 착용했어요 ✨`); api.beep();
+    api.sys(it.slot === 'ride' ? `🛴 ${it.name}을(를) 샀어요! 바로 올라탔어요. 🛴 버튼(컴퓨터는 R 키)으로 타고 내려요. 건물 안에서도 탈 수 있어요!` : `🛍️ ${it.name}을(를) 샀어요! 바로 착용했어요 ✨`); api.beep();
     render();
   }
   function toggle(id) {

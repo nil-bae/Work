@@ -324,6 +324,36 @@ const AM = {
   ice: new THREE.MeshStandardMaterial({ color: 0xd8f1ff, roughness: 0.08, metalness: 0.35, emissive: 0x2f78c8, emissiveIntensity: 0.55, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
   star: new THREE.MeshStandardMaterial({ color: 0xffd447, roughness: 0.22, metalness: 0.65, emissive: 0xc88a00, emissiveIntensity: 0.8 }),
 };
+// 🛴 킥보드 (부티크에서 삼, 발밑에 붙음). 색: 기본 블랙 · 민트 · 크롬 골드
+export const KICKS = {
+  kickblack: { deck: 0x1d1f24, stem: 0x2b2e35, trim: 0x8b929c, grip: 0x111111 },
+  kickmint: { deck: 0x7fd8c4, stem: 0xf4f6f8, trim: 0xf4f6f8, grip: 0x2a6b5e },
+  kickgold: { deck: 0x1a1a1e, stem: 0xe9c46a, trim: 0xe9c46a, grip: 0x3a2a12, gold: true },
+};
+export function makeKick(id) {
+  const c = KICKS[id] || KICKS.kickblack, g = new THREE.Group(), wheels = [];
+  const mat = (color, metal = 0.3, rough = 0.4) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough });
+  const deck = mat(c.deck, 0.2, 0.5), stem = mat(c.stem, c.gold ? 0.9 : 0.6, c.gold ? 0.2 : 0.35), trim = mat(c.trim, 0.7, 0.3), grip = mat(c.grip, 0, 0.8), tire = mat(0x15151a, 0, 0.8);
+  const box = (w, h, d, m, x, y, z, rx = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.x = rx; g.add(o); return o; };
+  box(0.13, 0.03, 0.56, deck, 0, 0.085, 0.0);                     // 발판
+  box(0.135, 0.008, 0.5, grip, 0, 0.102, -0.01);                  // 미끄럼 방지 테이프
+  box(0.006, 0.026, 0.56, trim, 0.068, 0.085, 0); box(0.006, 0.026, 0.56, trim, -0.068, 0.085, 0);
+  box(0.05, 0.02, 0.12, deck, 0, 0.1, -0.31, -0.25);              // 뒤 브레이크 덮개
+  for (const z of [0.31, -0.29]) {                                // 바퀴
+    const w = new THREE.Group(); w.position.set(0, 0.06, z);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.045, 18), tire); t.rotation.z = Math.PI / 2; w.add(t);
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12), trim); h.rotation.z = Math.PI / 2; w.add(h);
+    g.add(w); wheels.push(w);
+  }
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 10), stem); st.position.set(0, 0.3, 0.27); st.rotation.x = -0.15; g.add(st); // 손잡이 기둥
+  box(0.03, 0.12, 0.05, stem, 0, 0.11, 0.31);                      // 앞바퀴 포크
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.36, 10), stem); bar.rotation.z = Math.PI / 2; bar.position.set(0, 0.5, 0.24); g.add(bar);
+  for (const e of [-1, 1]) { const gp = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 10), grip); gp.rotation.z = Math.PI / 2; gp.position.set(e * 0.16, 0.5, 0.24); g.add(gp); }
+  if (c.gold) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff2c0 })); l.position.set(0, 0.42, 0.29); g.add(l); } // 골드는 앞 라이트
+  g.userData.wheels = wheels;
+  return g;
+}
+
 // 정장 앞: 흰 셔츠 V + 양쪽 라펠 (수트 · 턱시도)
 function suitFront(add, lapel) {
   add(new THREE.BoxGeometry(0.1, 0.16, 0.01), AM.shirtW, 0, 0.475, 0.208, -0.12, 0, 0);
@@ -367,7 +397,7 @@ function wingShape(w, h, round) { // 날개 한쪽 (x+ 쪽으로 펼침)
   else { sh.bezierCurveTo(w * 0.2, h * 0.7, w * 0.8, h, w, h * 0.55); for (let i = 0; i < 4; i++) sh.quadraticCurveTo(w * (0.9 - i * 0.22), h * (0.3 - i * 0.12), w * (0.78 - i * 0.22), h * (0.18 - i * 0.14)); sh.lineTo(0, -0.02); }
   return new THREE.ShapeGeometry(sh, 16);
 }
-export const ACC_SLOTS = { face: '얼굴', head: '머리', top: '머리 위', back: '등', body: '옷', neck: '목', bag: '가방', feet: '신발' };
+export const ACC_SLOTS = { face: '얼굴', head: '머리', top: '머리 위', back: '등', body: '옷', neck: '목', bag: '가방', feet: '신발', ride: '탈것' };
 export function makeAcc(id) {
   const g = new THREE.Group(); g.userData.id = id;
   const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.scale.set(sx, sy, sz); g.add(m); return m; };
@@ -754,6 +784,14 @@ export class Avatar {
       }
     }
   }
+  // 🛴 킥보드 타기 (id 없으면 내림)
+  setKick(id) {
+    id = id || null;
+    if (id === (this.kickId || null)) return;
+    if (this.kick) { this.root.remove(this.kick); this.kick.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); }); this.kick = null; }
+    this.kickId = id;
+    if (id) { this.kick = makeKick(id); this.root.add(this.kick); }
+  }
   setColor(color) { this.setLook(color, this.gender, this.look); }
   setName(name) {
     this.name = name;
@@ -892,6 +930,15 @@ export class Avatar {
     const breathe = Math.sin(this.idle * 1.8) * 0.006 * (1 - Math.min(s * 3, 1));
     this.body.position.y = Math.abs(Math.cos(this.phase)) * 0.04 * Math.min(s, 1) + breathe;
     this.torso.scale.y = 1 + breathe * 0.5;
+    if (this.kick) { // 🛴 발판 위에 서서 손잡이를 잡고, 달릴 때 오른발로 땅을 참
+      const moving = this.speed > 0.6;
+      this.kickT = (this.kickT || 0) + dt * (moving ? 4.2 : 0);
+      const push = moving ? Math.max(0, Math.sin(this.kickT)) : 0;
+      this.legL.rotation.x = -0.08; this.legR.rotation.x = 0.05 + push * 0.85;
+      if (!this.boxing) { this.armL.rotation.x = this.armR.rotation.x = -1.05; this.armL.rotation.z = 0.04; this.armR.rotation.z = -0.04; }
+      this.body.position.y = 0.1 + breathe + push * 0.015;
+      for (const w of this.kick.userData.wheels) w.rotation.x += dt * this.speed / 0.06;
+    }
     this.applyKO(now);
     if (this.bubble && now > this.bubbleUntil) {
       this.root.remove(this.bubble);
