@@ -1,11 +1,11 @@
-// 🏁 킥보드 레이스: 회사 블록을 둘러싼 도로(동서남북 네 길) 한 바퀴 코스, 2바퀴.
+// 🏁 킥보드 레이스: 회사 블록을 둘러싼 도로(동서남북 네 길) 한 바퀴 코스, 1바퀴(11-25 사용자 요청: 2바퀴는 너무 길다).
 // 정문 옆 '🏁 레이스 출발대'에서 참가 → 15초 모집 → 출발선으로 이동 → 3·2·1 → 출발.
 // 알림은 참가 · 나가기 · 결승 때만({t:'race'}). 달리는 위치는 평소 상태 메시지 그대로(+ 진행 거리 rp).
 // 자기 킥보드가 없으면 레이스 동안 기본 킥보드를 빌려 줌. 레이스 중엔 둘레 도로의 자동차를 통제(world.js).
 import * as THREE from 'three';
 import { canvasTex } from './building.js';
 
-export const RACE = { A: 60, R: 14, half: 7.2, laps: 2, lobby: 15, count: 3, limit: 240, kiosk: { x: 4.8, z: 28.7 } };
+export const RACE = { A: 60, R: 14, half: 7.2, laps: 1, lobby: 15, count: 3, limit: 240, kiosk: { x: 4.8, z: 28.7 } };
 const VMAX = 15, VBOOST = 30, ACC = 13, BOOST_T = 1.6, ITEM_T = 3, ITEM_BACK = 5; // 11-25 '너무 느리다' → 기본 15m/s, 아이템 · 부스터는 2배(30m/s)
 const PAY = [50000, 30000, 10000], PAY_FINISH = 5000, PAY_PB = 10000, PAY_DAY = 100000;
 const GY = -0.3; // 도로 높이 (world.js GROUND_Y)
@@ -96,7 +96,7 @@ export function createRaceTrack(colliders) {
     ctx.fillStyle = '#e8352f'; ctx.fillRect(0, 32, w, h - 32);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = '900 58px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('🏁 킥보드 레이스', w / 2, 110);
-    ctx.font = '700 30px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('회사 밖 도로 2바퀴 · 1등 5만 원', w / 2, 180);
+    ctx.font = '700 30px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('회사 밖 도로 1바퀴 · 1등 5만 원', w / 2, 180);
     ctx.fillText('여기서 참가하기', w / 2, 232);
   }) }));
   board.position.set(K.x, 1.45, K.z); board.rotation.y = Math.PI; group.add(board);
