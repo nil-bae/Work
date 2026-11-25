@@ -150,7 +150,7 @@ function hair(p, hs, HAIR, f, H) {
 }
 
 // 머리 + 몸통 (굳은 부분) — 교회 메타버스 캐릭터와 같은 비율, 옷만 회사원 차림
-function buildBody(gender, top, L) {
+function buildBody(gender, top, L, happy = false) {
   const f = gender === 'f';
   const p = new Part();
   const HAIR = HAIR_COLORS[L.hc];
@@ -218,16 +218,23 @@ function buildBody(gender, top, L) {
   p.add(new THREE.SphereGeometry(0.25, 28, 24), SKIN, 0, H, 0, { sx: 1.04, sy: 0.96 });
   for (const sx of [-1, 1]) p.add(new THREE.SphereGeometry(0.05, 12, 10), SKIN, sx * 0.255, H - 0.02, 0, { sx: 0.5, sz: 0.8 });
   hair(p, L.hs, HAIR, f, H);
-  // 얼굴: 큰 눈 + 반짝임, 눈썹, 볼터치, 웃는 입
+  // 얼굴: 큰 눈 + 반짝임, 눈썹, 볼터치, 웃는 입 (happy = 💃 춤출 때: ^ ^ 감은 눈 + 활짝 벌린 입)
   for (const sx of [-1, 1]) {
-    p.add(new THREE.SphereGeometry(0.04, 16, 12), EYE, sx * 0.09, H, 0.225, { sx: 0.85, sy: 1.2, sz: 0.35 });
-    p.add(new THREE.SphereGeometry(0.013, 8, 8), 0xffffff, sx * 0.09 + 0.012, H + 0.02, 0.238);
-    p.add(new THREE.SphereGeometry(0.006, 6, 6), 0xffffff, sx * 0.09 - 0.012, H - 0.015, 0.238);
+    if (happy) p.add(new THREE.TorusGeometry(0.026, 0.0065, 6, 14, Math.PI), EYE, sx * 0.09, H - 0.01, 0.236, { sx: 1.15 });
+    else {
+      p.add(new THREE.SphereGeometry(0.04, 16, 12), EYE, sx * 0.09, H, 0.225, { sx: 0.85, sy: 1.2, sz: 0.35 });
+      p.add(new THREE.SphereGeometry(0.013, 8, 8), 0xffffff, sx * 0.09 + 0.012, H + 0.02, 0.238);
+      p.add(new THREE.SphereGeometry(0.006, 6, 6), 0xffffff, sx * 0.09 - 0.012, H - 0.015, 0.238);
+    }
     const arc = Math.PI * 0.62;
     p.add(new THREE.TorusGeometry(0.02, 0.0035, 4, 12, arc), HAIR, sx * 0.09, H + 0.058, 0.233, { sx: 1.15, sy: 0.7, rz: (Math.PI - arc) / 2 - sx * 0.1 });
     p.add(new THREE.SphereGeometry(0.03, 14, 10), 0xf9b4c2, sx * 0.15, H - 0.06, 0.2, { sz: 0.25, ry: sx * 0.55 });
   }
-  p.add(new THREE.TorusGeometry(0.022, 0.006, 6, 16, Math.PI), 0x8a3b3b, 0, H - 0.075, 0.236, { rz: Math.PI });
+  if (happy) {
+    p.add(new THREE.SphereGeometry(0.046, 18, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), 0x7a1f30, 0, H - 0.06, 0.226, { sx: 1.05, sy: 0.95, sz: 0.4, rx: -0.25 });
+    p.add(new THREE.BoxGeometry(0.074, 0.013, 0.012), 0xffffff, 0, H - 0.064, 0.243, { rx: -0.25 });
+    p.add(new THREE.SphereGeometry(0.022, 12, 8), 0xff8c9a, 0, H - 0.088, 0.24, { sx: 1.25, sy: 0.6, sz: 0.45 });
+  } else p.add(new THREE.TorusGeometry(0.022, 0.006, 6, 16, Math.PI), 0x8a3b3b, 0, H - 0.075, 0.236, { rz: Math.PI });
   return p.mesh(MAT);
 }
 // 다리 (엉덩이 관절 기준)
@@ -711,7 +718,7 @@ export class Avatar {
     this.body.clear();
     const g = this.gender, top = this.color, L = parseLook(this.look, g);
     const f = g === 'f';
-    this.torso = buildBody(g, top, L);
+    this.torso = buildBody(g, top, L, !!this.danceId);
     this.legL = buildLeg(g, top, L); this.legR = buildLeg(g, top, L);
     this.legL.position.set(-0.085, 0.25, 0); this.legR.position.set(0.085, 0.25, 0);
     this.armL = buildArm(g, top, L); this.armR = buildArm(g, top, L);
@@ -783,6 +790,56 @@ export class Avatar {
         arm.add(sg); this.accExtra.push(sg);
       }
     }
+  }
+  dance(dt) {
+    const t = (this.danceT += dt), b = t * 2.1 * Math.PI; // 약 126 BPM
+    const L = this.legL, R = this.legR, aL = this.armL, aR = this.armR, B = this.body, sn = Math.sin, cs = Math.cos;
+    B.rotation.set(0, 0, 0); B.position.x = 0;
+    switch (this.danceId) {
+      case 1: { // 🙌 신나는 점프: 팔을 번갈아 위로 찌르며 통통
+        const up = Math.abs(sn(b / 2));
+        B.position.y = up * 0.09; B.rotation.y = sn(b / 4) * 0.35;
+        aL.rotation.x = -2.6 + sn(b) * 0.5; aR.rotation.x = -2.6 - sn(b) * 0.5; aL.rotation.z = -0.35; aR.rotation.z = 0.35;
+        L.rotation.x = -up * 0.35; R.rotation.x = up * 0.2;
+        break;
+      }
+      case 2: { // 🌊 웨이브: 팔을 옆으로 펴고 물결, 엉덩이 좌우
+        aL.rotation.x = 0; aR.rotation.x = 0;
+        aL.rotation.z = -1.45 + sn(b) * 0.35; aR.rotation.z = 1.45 + sn(b - 1.2) * 0.35;
+        B.rotation.z = sn(b / 2) * 0.12; B.position.x = sn(b / 2) * 0.05; B.position.y = Math.abs(cs(b / 2)) * 0.03;
+        L.rotation.x = sn(b / 2) * 0.25; R.rotation.x = -sn(b / 2) * 0.25;
+        break;
+      }
+      case 3: { // 🤖 로봇: 뚝뚝 끊기는 동작
+        const k = Math.floor(t * 4) % 4, q = [0, 0.45, 0, -0.45][k];
+        B.rotation.y = q; B.position.y = k % 2 ? 0.015 : 0;
+        aL.rotation.x = k % 2 ? -1.57 : -0.3; aR.rotation.x = k % 2 ? -0.3 : -1.57; aL.rotation.z = -0.2; aR.rotation.z = 0.2;
+        L.rotation.x = k === 1 ? -0.3 : 0; R.rotation.x = k === 3 ? -0.3 : 0;
+        break;
+      }
+      case 4: { // 🌀 빙글빙글: 팔을 머리 위로 모으고 돎
+        B.rotation.y = t * 5; B.position.y = Math.abs(sn(b)) * 0.04;
+        aL.rotation.x = aR.rotation.x = -2.9; aL.rotation.z = 0.25; aR.rotation.z = -0.25;
+        L.rotation.x = sn(b) * 0.2; R.rotation.x = -sn(b) * 0.2;
+        break;
+      }
+      default: { // 💃 셔플: 발을 번갈아 차며 손뼉
+        const st = sn(b);
+        L.rotation.x = Math.max(0, st) * -0.7; R.rotation.x = Math.max(0, -st) * -0.7;
+        B.position.y = Math.abs(st) * 0.05; B.rotation.y = st * 0.2;
+        const clap = Math.abs(sn(b));
+        aL.rotation.x = aR.rotation.x = -1.35; aL.rotation.z = 0.05 + clap * 0.5; aR.rotation.z = -0.05 - clap * 0.5;
+      }
+    }
+  }
+  // 💃 춤 (0 = 안 춤). 춤추는 동안은 활짝 웃는 얼굴
+  setDance(id) {
+    id = +id || 0;
+    if (id === (this.danceId || 0)) return;
+    const face = !!id !== !!this.danceId;
+    this.danceId = id; this.danceT = 0;
+    if (face) this.build(); // 웃는 얼굴 ↔ 평소 얼굴
+    if (!id) { this.body.rotation.set(0, 0, 0); this.body.position.x = 0; }
   }
   // 🛴 킥보드 타기 (id 없으면 내림)
   setKick(id) {
@@ -939,6 +996,7 @@ export class Avatar {
       this.body.position.y = 0.1 + breathe + push * 0.015;
       for (const w of this.kick.userData.wheels) w.rotation.x += dt * this.speed / 0.06;
     }
+    if (this.danceId && !this.sitting) this.dance(dt);
     this.applyKO(now);
     if (this.bubble && now > this.bubbleUntil) {
       this.root.remove(this.bubble);

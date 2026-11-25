@@ -16,6 +16,7 @@ import { createShop, createShopUI, SHOP, ITEMS } from './shop.js';
 import { createSnowField, createSnowFight } from './snow.js';
 import { createXmas } from './advent.js';
 import { createRace, createRaceTrack, RACE } from './race.js';
+import { createPartyStage, inParty, DANCES } from './party.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, ACC_SLOTS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
@@ -242,6 +243,22 @@ const race = createRace({
   toFloor0: () => { player.floor = 0; bld.setFloor(0, false); },
   changed: () => { clearTarget(); sendState(true); },
 });
+// 🪩 옥상 파티 무대: 무대 위에서 💃 버튼(G 키) → 누를 때마다 다른 춤, 움직이면 멈춤
+const partyStage = createPartyStage(bld.floors[4]);
+let danceNext = 1;
+function danceTap() {
+  if (!myAvatar || !inParty(player.floor, player.x, player.z) || busy() || player.sit) return;
+  const id = danceNext; danceNext = (danceNext % (DANCES.length - 1)) + 1;
+  myAvatar.setDance(id); clearTarget(); sendState(true); danceUI();
+  toast(`${DANCES[id]}! (다시 누르면 다른 춤 · 움직이면 멈춰요)`, null);
+}
+function danceUI() {
+  const on = !!myAvatar && inParty(player.floor, player.x, player.z) && !race.driving;
+  $('btnDance').hidden = !on;
+  $('btnDance').classList.toggle('on', !!myAvatar?.danceId);
+  $('btnDance').querySelector('span').textContent = myAvatar?.danceId ? '다른 춤' : '춤추기';
+}
+$('btnDance').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); danceTap(); });
 $('btnKick').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); toggleKick(); });
 $('btnSnow').addEventListener('pointerdown', (e) => { e.preventDefault(); document.activeElement?.blur?.(); snowFight.throw(); });
 const atShop = () => mode === 'office' && player.floor === 0 && shop.inside(player.x, player.z);
@@ -524,6 +541,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyE') interact();
   if (e.code === 'KeyF' && snowFight.inField) { e.preventDefault(); if (!e.repeat) snowFight.throw(); }
   if (e.code === 'KeyR' && !e.repeat && myAvatar) toggleKick();
+  if (e.code === 'KeyG' && !e.repeat) danceTap();
   if (e.code === 'Space') { e.preventDefault(); doJump(); }
   if (e.code === 'Escape') closeModals();
 });
@@ -682,7 +700,9 @@ function updatePlayer(dt) {
     }
   }
   player.speed = dt > 0 ? moved / dt : 0;
-  { const k = race.driving ? race.kick : me.kick && !player.sit && !busy() ? me.kick : null; if (k !== (myAvatar.kickId || null)) { myAvatar.setKick(k); sendState(true); } }
+  if (myAvatar.danceId && (moved > 0.02 || player.sit || busy() || !inParty(player.floor, player.x, player.z))) { myAvatar.setDance(0); sendState(true); }
+  { const was = $('btnDance').hidden; danceUI(); if (was && !$('btnDance').hidden) sysMessage('🪩 옥상 파티 무대예요! 💃 춤추기 버튼(컴퓨터는 G 키)을 누르면 춤춰요. 누를 때마다 다른 춤!'); }
+  { const k = race.driving ? race.kick : me.kick && !player.sit && !busy() && !myAvatar.danceId ? me.kick : null; if (k !== (myAvatar.kickId || null)) { myAvatar.setKick(k); sendState(true); } }
   { const g = player.sit ? 0 : groundAt(player.x, player.z, myAvatar.jy); if (Math.abs(g - myAvatar.ground) > 0.05 && performance.now() - lastSend > 300) { myAvatar.ground = g; sendState(true); } else myAvatar.ground = g; }
   if (race.driving) myAvatar.ground = -0.3; // 회사 밖 도로 높이
   placeAvatar(myAvatar, player);
@@ -984,7 +1004,7 @@ function sendState(force = false) {
   if (!force && !(movedEnough && t - lastSend > 300) && t - lastSend < 10000) return;
   lastSend = t;
   lastSent = { x: player.x, z: player.z, ry: player.ry };
-  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '', rp: race.progress });
+  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '', rp: race.progress, dn: myAvatar?.danceId || 0 });
 }
 
 function onState(p) {
@@ -1027,6 +1047,7 @@ function onState(p) {
   peer.av.ground = +p.hy || 0;
   peer.av.setKick(p.kb || null);
   peer.rp = p.rp;
+  peer.av.setDance(p.dn || 0);
 }
 const recentlyGone = new Map(); // 이름 → 나간 시각 (잠깐 다녀온 사람은 '들어왔어요'를 또 띄우지 않음)
 function removePeer(id, quiet = false) {
@@ -1623,7 +1644,7 @@ function frame() {
   duel.update(dt);
   updateSparks(dt);
   snowFight.update(dt);
-  race.tick(); raceTrack.update(now);
+  race.tick(); raceTrack.update(now); partyStage.update(now);
   duelHost.root.visible = !(mode === 'office' && player.floor !== ARENA.floor); duelHost.animate(dt, 0, now);
   if (duelBot.root.visible) duelBot.animate(dt, 0, now);
   if (pingMark.visible) { pingMark.scale.setScalar(Math.max(1, pingMark.scale.x - dt * 3)); pingMark.rotation.z += dt * 2; }
@@ -1663,5 +1684,5 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { sitDown, race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+window.__work = { danceTap, sitDown, race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;

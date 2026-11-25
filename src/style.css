@@ -450,3 +450,11 @@ dl.wal small { color: var(--muted); font-size: 11px; margin-left: 4px; }
 #workChip .rate.r2 { background: #3ecf8e; color: #062; }
 #raceSpeed { position: absolute; inset: 0; pointer-events: none; z-index: 5; background: repeating-conic-gradient(from 0deg at 50% 55%, rgba(255,255,255,.0) 0deg 5deg, rgba(180,240,255,.32) 5deg 5.6deg, rgba(255,255,255,0) 5.6deg 11deg); -webkit-mask: radial-gradient(ellipse at 50% 55%, transparent 38%, #000 75%); mask: radial-gradient(ellipse at 50% 55%, transparent 38%, #000 75%); animation: raceZoom .25s linear infinite; }
 @keyframes raceZoom { from { transform: scale(1); opacity: .9; } to { transform: scale(1.06); opacity: .6; } }
+
+/* 💃 춤추기 (옥상 파티 무대 위에서만) */
+#btnDance { position: absolute; right: 22px; bottom: 150px; width: 78px; height: 78px; border-radius: 50%; border: 2px solid #fff; background: linear-gradient(135deg, rgba(255,79,216,.95), rgba(120,80,255,.95)); color: #fff; font-size: 30px; line-height: 1; display: grid; place-content: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; box-shadow: 0 4px 18px rgba(255,79,216,.45); z-index: 5; }
+#btnDance span { font-size: 12px; font-weight: 800; }
+#btnDance.on { animation: danceBtn .48s ease-in-out infinite alternate; }
+#btnDance:active { transform: scale(.9); }
+@keyframes danceBtn { from { transform: scale(1) rotate(-6deg); } to { transform: scale(1.06) rotate(6deg); } }
+@media (hover: hover) and (pointer: fine) { #btnDance { bottom: 80px; right: 24px; } }

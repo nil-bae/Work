@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "../../vendor/three/three.module.js", "three/addons/": "../../vendor/three/addons/" } }</script>
+<style>body{margin:0;background:#1a1530}</style></head><body>
+<script type="module">
+// 💃 춤 확인용: 춤 5가지 × 박자 3군데 (위 줄은 평소 얼굴). ?zoom=1 얼굴 크게
+import * as THREE from 'three';
+import { Avatar } from '../../src/avatar.js';
+const q = new URLSearchParams(location.search);
+const W = 1400, H = 900, r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping;
+const s = new THREE.Scene(); s.background = new THREE.Color(0x1a1530);
+s.add(new THREE.HemisphereLight(0xeef2ff, 0x40352c, 2.4)); const k = new THREE.DirectionalLight(0xffffff, 2.2); k.position.set(2, 3, 4); s.add(k);
+const cam = new THREE.PerspectiveCamera(20, W / H, 0.1, 50); cam.position.set(0, 2.2, 15); cam.lookAt(0, 0.2, 0);
+for (let d = 0; d <= 5; d++) for (let row = 0; row < 3; row++) {
+  const g = d % 2 ? 'm' : 'f', a = new Avatar('', ['#4f8cff', '#ff6b6b', '#3ecf8e', '#b47cff', '#ffb547', '#26272c'][d], g, `${d % 8}${d % 3}${d % 5}10`); a.label.visible = false;
+  a.setDance(d === 0 ? 0 : d === 5 ? 5 : d);
+  if (d) a.dance(0.12 + row * 0.17);
+  a.root.position.set((d - 2.5) * 1.15, 1.35 - row * 1.45, 0); a.root.rotation.y = -0.15; s.add(a.root);
+}
+if (q.get('zoom')) { cam.fov = 6; cam.position.set(+q.get('zoom'), 2.4, 15); cam.lookAt(+q.get('zoom'), 2.0, 0); cam.updateProjectionMatrix(); }
+r.render(s, cam); window.done = true;
+</script></body></html>

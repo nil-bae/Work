@@ -33,9 +33,10 @@ export const SNOW = { x0: -9.5, x1: 9.5, z0: -21.5, z1: -9.5 }; // ⛄ 눈싸움
 export const SPAWN = { floor: 0, x: 0, z: 9.4, yaw: 0 }; // 회사 정문 바로 앞(바깥)에서 문을 바라봄
 
 export const ZONES = {
-  garden: '1F 정원', f1: '1F 로비·카페', f2: '2F 업무 공간', f3: '3F 회의실 홀', meetA: '3F 회의실 A', meetB: '3F 회의실 B', f4: '4F 라운지', arcade: '4F 오락존', roof: '옥상 테라스', snow: '⛄ 눈싸움장', race: '🏁 킥보드 레이스',
+  garden: '1F 정원', f1: '1F 로비·카페', f2: '2F 업무 공간', f3: '3F 회의실 홀', meetA: '3F 회의실 A', meetB: '3F 회의실 B', f4: '4F 라운지', arcade: '4F 오락존', roof: '옥상 테라스', snow: '⛄ 눈싸움장', race: '🏁 킥보드 레이스', party: '🪩 옥상 파티 무대',
 };
 export function zoneAt(f, x, z) {
+  if (f === 4 && x > -9.6 && x < -5.2 && z > 0.5 && z < 5.0) return 'party'; // 🪩 옥상 파티 무대 (party.js PARTY)
   if (f === 0 && (Math.abs(x) > LOT + 1 || Math.abs(z) > LOT + 1)) return 'race'; // 회사 밖 도로 (레이스 중)
   if (f === 0 && x > SNOW.x0 && x < SNOW.x1 && z > SNOW.z0 && z < SNOW.z1) return 'snow';
   if (f === 0 && (Math.abs(x) > HX || Math.abs(z) > HZ)) return 'garden';
