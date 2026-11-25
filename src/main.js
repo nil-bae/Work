@@ -508,7 +508,7 @@ function enter() {
   placeAvatar(myAvatar, player);
   me.jt = Date.now();
   net = connect(me, {
-    onState, onChat: receiveChat, onLeave: removePeer, onSync: () => sendState(true), onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); snowFight.onEvent(e); race.onEvent(e); },
+    onState, onChat: receiveChat, onLeave: removePeer, onSync: (scope) => sendState(true, scope === 'all'), onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); snowFight.onEvent(e); race.onEvent(e); },
     onStatus(text, online) { $('netText').textContent = text; $('netDot').classList.toggle('on', online); },
   });
   sysMessage(returning
@@ -998,15 +998,20 @@ function updateCamera(dt) {
 // ---------- 네트워크 ----------
 setInterval(() => sendState(), 4000); // 화면이 멈춰도(다른 탭) 살아 있다고 알림
 let lastSend = 0, lastSent = { x: 0, z: 0, ry: 0 };
-function sendState(force = false) {
+let lastAll = -1e9;
+function sendState(force = false, all = false) {
   if (!net) return;
   const t = performance.now();
+  net.setFloor(player.floor); // 🏢 같은 층 채널로 갈아탐 (층이 바뀔 때만)
   const movedEnough = Math.abs(player.x - lastSent.x) + Math.abs(player.z - lastSent.z) > 0.02 || Math.abs(player.ry - lastSent.ry) > 0.05;
     // 무료 사용량을 아끼려고: 움직일 때 초당 약 3번, 가만히 있을 땐 10초에 한 번 (받는 쪽에서 부드럽게 이어 그림)
-  if (!force && !(movedEnough && t - lastSend > 300) && t - lastSend < 10000) return;
+  if (!force && player.floor === lastSent.floor && !(movedEnough && t - lastSend > 300) && t - lastSend < 20000) return; // 가만히 있을 땐 20초에 한 번(공용)
   lastSend = t;
-  lastSent = { x: player.x, z: player.z, ry: player.ry };
-  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine && sleigh ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '', rp: race.progress, dn: myAvatar?.danceId || 0 });
+  // 모두에게(공용 채널): 20초마다 · 층을 옮겼을 때 · 누가 새로 들어왔을 때 → 접속자 목록 · 층 표시용. 나머지 움직임은 같은 층에만
+  if (player.floor !== lastSent.floor || t - lastAll > 20000) all = true;
+  if (all) lastAll = t;
+  lastSent = { x: player.x, z: player.z, ry: player.ry, floor: player.floor };
+  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine && sleigh ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '', rp: race.progress, dn: myAvatar?.danceId || 0 }, all);
 }
 
 function onState(p) {
