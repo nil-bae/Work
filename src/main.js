@@ -102,9 +102,11 @@ scene.add(garden.group);
 bld.floors[0].colliders.push(...garden.colliders);
 // 🎄 크리스마스: 광장 트리 · 내리는 눈 · 루돌프 썰매
 const snow = null; // 눈 내리기는 느려질 수 있어서 끔 (xmas.js의 createSnow)
-const sleigh = XMAS ? createSleigh() : null;
-if (XMAS) {
-  scene.add(createPlazaTree(garden), sleigh.root);
+const SLEIGH_ON = false; // 🛷 루돌프 썰매 타기 — 11-25 사용자 요청으로 종료(기능이 너무 많아짐). 다시 열려면 true
+const sleigh = XMAS && SLEIGH_ON ? createSleigh() : null;
+if (XMAS) scene.add(createPlazaTree(garden));
+if (sleigh) {
+  scene.add(sleigh.root);
   sleigh.root.position.set(SLEIGH.x, 0, SLEIGH.z);
   bld.floors[0].colliders.push({ x1: SLEIGH.x - 1.55, z1: SLEIGH.z - 0.68, x2: SLEIGH.x + 4.0, z2: SLEIGH.z + 0.68, tall: false, top: 1, noStand: true });
 }
@@ -749,7 +751,7 @@ function nearWhat() {
   if (player.floor === ARENA.floor && Math.hypot(player.x - HOST.x, player.z - (HOST.z + 0.8)) < 1.2) return 'host';
   if (player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + 1.55), player.z - INVEST.z) < 1.0) return 'invest';
   if (player.floor === 0 && Math.hypot(player.x - SHOP.counter.x, player.z - SHOP.counter.z) < 1.2) return 'shop';
-  if (XMAS && player.floor === 0 && !ride.flying && Math.hypot(player.x - (SLEIGH.x - 0.3), player.z - SLEIGH.z) < 2.0) return 'sleigh';
+  if (sleigh && player.floor === 0 && !ride.flying && Math.hypot(player.x - (SLEIGH.x - 0.3), player.z - SLEIGH.z) < 2.0) return 'sleigh';
   if (player.floor === 0 && !race.driving && Math.hypot(player.x - RACE.kiosk.x, player.z - (RACE.kiosk.z - 0.9)) < 1.6) return 'race';
   if (Math.hypot(player.x - ELEV.x, player.z - ELEV.z) < 1.9) return 'elev';
   if (player.floor === 3) for (const b of BOOTHS) if (Math.hypot(player.x - b.spot.x, player.z - b.spot.z) < 0.85) return { booth: b };
@@ -1004,7 +1006,7 @@ function sendState(force = false) {
   if (!force && !(movedEnough && t - lastSend > 300) && t - lastSend < 10000) return;
   lastSend = t;
   lastSent = { x: player.x, z: player.z, ry: player.ry };
-  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '', rp: race.progress, dn: myAvatar?.danceId || 0 });
+  net.sendState({ id: me.id, name: me.name, color: me.color, g: me.gender, lk: me.look, ac: (me.acc || []).join(','), jt: me.jt, dv: me.dev, floor: player.floor, x: +player.x.toFixed(2), z: +player.z.toFixed(2), ry: +player.ry.toFixed(2), sp: +player.speed.toFixed(1), zone: player.zone, st: player.sit ? player.sit.h : ride.mine && sleigh ? sleigh.seatH : 0, bx: game.on ? game.booth.i : -1, pc: game.pc, wk: player.working ? 1 : 0, jc: player.jc || 0, dl: duel.active ? 1 : 0, sc: duel.swings, lv: duel.level, tt: duel.loser ? 1 : 0, hy: myAvatar ? +myAvatar.ground.toFixed(2) : 0, kb: myAvatar?.kickId || '', rp: race.progress, dn: myAvatar?.danceId || 0 });
 }
 
 function onState(p) {
@@ -1479,7 +1481,7 @@ function rideLeave() {
   net?.sendEvent(e); rideEvent(e);
 }
 function rideEvent(e) {
-  if (!XMAS || !e || e.t !== 'sleigh') return;
+  if (!sleigh || !e || e.t !== 'sleigh') return;
   if (e.k === 'pose') { // 조종사가 보낸 위치
     if (ride.captain === me.id && ride.sim) return;
     ride.net = e; ride.netAt = performance.now();
@@ -1550,6 +1552,7 @@ function simStep(dt) {
 }
 const _seat = new THREE.Vector3();
 function updateRide(dt) {
+  if (!sleigh) return;
   const t = Date.now();
   for (const id of ride.riders.keys()) if (id !== me.id && !peers.has(id) && !ride.flying) ride.riders.delete(id); // 접속이 끊긴 사람은 빼기
   if (!ride.riders.size && !ride.flying) ride.departAt = 0;

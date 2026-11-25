@@ -225,3 +225,6 @@ docs/HANDOFF.md 를 먼저 읽고 그대로 이어서 해줘.
 ## ⚠️ 배포할 때마다: `python3 tools/stamp.py` 먼저 (11-25)
 - GitHub Pages는 파일을 최대 10분 저장해 둬서 휴대폰이 새 파일 · 예전 파일을 섞어 써서 새 기능이 고장 남(댄스 파티가 안 됨 제보). `tools/stamp.py`가 index.html의 import map에 src/*.js마다 `?v=시각`을 붙이고 main.js · style.css에도 붙임 → 새로 고침 한 번에 전부 최신.
 - src에 새 .js 파일을 만들면 stamp.py가 자동으로 넣음(목록을 폴더에서 읽음). 커밋 직전에 실행해서 index.html도 같이 커밋.
+
+## 🛷 루돌프 썰매 종료 (11-25)
+- 사용자: '기능이 너무 많아졌네, 루돌프 타기는 종료'. main.js `SLEIGH_ON = false` → 썰매 모형 · 부딪힘 · 타기 안내 · 비행 모두 꺼짐(코드는 남겨 둠, 다시 열려면 true). 업데이트 소식의 썰매 안내 삭제 + 종료 공지.
