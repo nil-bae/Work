@@ -268,3 +268,4 @@ docs/HANDOFF.md 를 먼저 읽고 그대로 이어서 해줘.
 - ⚠️ 남은 한계: 새 이름으로 들어오면 환영금 10만 원을 또 받음 / duel_stats · 요청 · 공지 테이블은 아직 누구나 씀 / 결투는 두 사람이 결과를 다르게 보고하면 둘 다 환불.
 - 11-26 실행 오류 `relation "public.wallets" does not exist` → **Supabase에 wallets 표가 처음부터 없었음**(지갑은 모두 각자 브라우저에만 있었음). security.sql 앞에 wallets 만들기 추가. 설명은 전부 `/* */`로 바꿈(한 줄로 합쳐도 실행 확인).
 - 예전 지갑 옮기기(사용자 선택 '한 번 가져오기'): `wallet_import` + wallets.imported. 서버 지갑을 처음 받을 때 이 브라우저의 `work-wallet`을 한 번 보냄 → 서버가 산 아이템 값(진짜 상품만, 먼저) + 현금 + 미지급 + 예금 + 주식 값(그 시점 가격)을 합쳐 최대 300만 원까지 인정, 출석 날짜는 11/24~오늘만, 출석 선물은 날짜 수로 다시 계산. 두 번째부터는 무시.
+- ✅ 11-26 15:49 사용자가 work 프로젝트에서 security.sql 실행 성공(Success. No rows returned) → 서버 지갑 켜짐.
