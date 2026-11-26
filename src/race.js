@@ -5,7 +5,12 @@
 import * as THREE from 'three';
 import { canvasTex } from './building.js';
 
-export const RACE = { A: 60, R: 14, half: 7.2, laps: 1, lobby: 15, count: 3, limit: 240, kiosk: { x: 4.8, z: 28.7 } };
+export const RACE = { A: 60, R: 14, half: 7.2, laps: 1, lobby: 15, count: 3, limit: 240,
+  // 11-26 사용자: '물 위에 떠 있어 애매, 물 건너가서 모이게 + 네모 칸에 들어가면 참가' → 정문 개울 건너 앞 광장(부지 밖)에 참가 칸
+  plaza: { x0: -8, x1: 8, z1: 42 },              // 1층에서 걸어 나갈 수 있는 정문 앞 광장 (부지 남쪽 끝 ~ z 42)
+  zone: { x0: -3, x1: 3, z0: 35, z1: 40 },       // 🏁 참가 칸: 들어가면 참가, 출발 전에 나가면 취소
+  kiosk: { x: 0, z: 40.9 } };                    // 안내판 (칸 뒤)
+export const inRaceZone = (f, x, z) => f === 0 && x > RACE.zone.x0 && x < RACE.zone.x1 && z > RACE.zone.z0 && z < RACE.zone.z1;
 const VMAX = 15, VBOOST = 30, ACC = 13, BOOST_T = 1.6, ITEM_T = 3, ITEM_BACK = 5; // 11-25 '너무 느리다' → 기본 15m/s, 아이템 · 부스터는 2배(30m/s)
 const PAY = [50000, 30000, 10000], PAY_FINISH = 5000, PAY_PB = 10000, PAY_DAY = 100000;
 const GY = -0.3; // 도로 높이 (world.js GROUND_Y)
@@ -88,18 +93,35 @@ export function createRaceTrack(colliders) {
   const m = new THREE.Matrix4();
   cones.forEach(([x, z], i) => { cone.setMatrixAt(i, m.makeTranslation(x, GY + 0.375, z)); band.setMatrixAt(i, m.makeTranslation(x, GY + 0.42, z)); });
   group.add(cone, band);
-  // 정문 옆 출발대 (부지 안)
+  // 🏁 참가 칸 (정문 앞 광장 바닥, 체크무늬 테두리 + 글씨)
+  {
+    const Z = RACE.zone, w = Z.x1 - Z.x0, d = Z.z1 - Z.z0;
+    const floorTex = canvasTex(600, 500, (ctx, W, H) => {
+      ctx.fillStyle = 'rgba(232,53,47,0.22)'; ctx.fillRect(0, 0, W, H);
+      const c = 25; for (let i = 0; i < W / c; i++) for (const yy of [0, H - c]) { ctx.fillStyle = i % 2 ? '#111' : '#fff'; ctx.fillRect(i * c, yy, c, c); }
+      for (let j = 1; j < H / c - 1; j++) for (const xx of [0, W - c]) { ctx.fillStyle = j % 2 ? '#111' : '#fff'; ctx.fillRect(xx, j * c, c, c); }
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '900 64px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('🏁 RACE', W / 2, H / 2 - 40);
+      ctx.font = '800 40px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('이 칸에 들어오면 참가!', W / 2, H / 2 + 40);
+    });
+    const pad = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: floorTex, transparent: true, depthWrite: false }));
+    pad.rotation.x = -Math.PI / 2; pad.rotation.z = Math.PI; pad.position.set((Z.x0 + Z.x1) / 2, GY + 0.015, (Z.z0 + Z.z1) / 2); group.add(pad);
+    for (const [x, z] of [[Z.x0, Z.z0], [Z.x1, Z.z0], [Z.x0, Z.z1], [Z.x1, Z.z1]]) { // 모서리 고깔
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 12), new THREE.MeshStandardMaterial({ color: 0xff6a1a, roughness: 0.6 })); c.position.set(x, GY + 0.3, z); group.add(c);
+    }
+  }
+  // 안내판 (참가 칸 뒤, 부지 쪽을 봄)
   const K = RACE.kiosk, wood = new THREE.MeshStandardMaterial({ color: 0x2a2d34, roughness: 0.5, metalness: 0.5 });
-  for (const e of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.7, 0.1), wood); p.position.set(K.x + e * 0.7, 0.85, K.z); group.add(p); }
+  for (const e of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.0, 0.1), wood); p.position.set(K.x + e * 0.7, GY + 1.0, K.z); group.add(p); }
   const board = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), new THREE.MeshBasicMaterial({ map: canvasTex(512, 288, (ctx, w, h) => {
     const c = 16; for (let i = 0; i < w / c; i++) { ctx.fillStyle = i % 2 ? '#111' : '#fff'; ctx.fillRect(i * c, 0, c, c); ctx.fillStyle = i % 2 ? '#fff' : '#111'; ctx.fillRect(i * c, c, c, c); }
     ctx.fillStyle = '#e8352f'; ctx.fillRect(0, 32, w, h - 32);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = '900 58px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('🏁 킥보드 레이스', w / 2, 110);
     ctx.font = '700 30px "Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif'; ctx.fillText('회사 밖 도로 1바퀴 · 1등 5만 원', w / 2, 180);
-    ctx.fillText('여기서 참가하기', w / 2, 232);
+    ctx.fillText('앞의 네모 칸에 들어오면 참가!', w / 2, 232);
   }) }));
-  board.position.set(K.x, 1.45, K.z); board.rotation.y = Math.PI; group.add(board);
+  board.position.set(K.x, GY + 1.75, K.z); board.rotation.y = Math.PI; group.add(board);
   const back = board.clone(); back.rotation.y = 0; back.position.z += 0.01; group.add(back);
   colliders.push({ x1: K.x - 0.8, z1: K.z - 0.1, x2: K.x + 0.8, z2: K.z + 0.1, tall: true });
   return { group, update(t) { for (const p of pads) p.children[1].material.color.setScalar(1.3 + Math.sin(t * 6) * 0.4); boxes.forEach((b, i) => { const it = ITEMS[i]; b.visible = Date.now() >= it.back; b.rotation.set(0.5, t * 2 + i, 0.3); b.position.y = GY + 0.9 + Math.sin(t * 3 + i) * 0.12; }); } };
@@ -141,8 +163,8 @@ export function createRace(api) {
       if (!st.lobby.has(e.id)) {
         st.lobby.set(e.id, { name: e.name, ts: e.ts });
         st.startAt = st.startAt ? Math.min(st.startAt, e.at) : e.at;
-        if (e.id === me.id) api.sys(`🏁 레이스에 참가했어요! ${Math.ceil((st.startAt - now()) / 1000)}초 뒤 출발선으로 이동해요. (취소: 출발대에서 한 번 더)`);
-        else api.sys(`🏁 ${e.name}님이 킥보드 레이스에 참가했어요! 정문 옆 출발대에서 같이 달려요 (${st.lobby.size}명)`);
+        if (e.id === me.id) api.sys(`🏁 레이스에 참가했어요! ${Math.ceil((st.startAt - now()) / 1000)}초 뒤 출발선으로 이동해요. (칸 밖으로 나가면 취소)`);
+        else api.sys(`🏁 ${e.name}님이 킥보드 레이스에 참가했어요! 정문 앞 광장의 🏁 네모 칸에 들어오면 같이 달려요 (${st.lobby.size}명)`);
       }
     } else if (e.k === 'leave') {
       if (st.lobby.delete(e.id) && !st.lobby.size) st.startAt = 0;
@@ -190,7 +212,7 @@ export function createRace(api) {
   function quit(silent = false) {
     if (!st.mine) return;
     st.mine = false; st.phase = 'idle';
-    const p = api.player(); p.x = 0; p.z = 28.2; p.ry = Math.PI; api.cam.yaw = 0; api.cam.dist = 3.4; api.cam.pitch = 0.28;
+    const p = api.player(); p.x = 0; p.z = 33; p.ry = 0; api.cam.yaw = Math.PI; api.cam.dist = 3.4; api.cam.pitch = 0.28; // 참가 칸 앞(광장)으로
     $('raceHud').hidden = true; $('raceCount').hidden = true; $('raceQuit').hidden = true; $('raceSpeed').hidden = true;
     if (!silent) { const e = { t: 'race', k: 'leave', id: me.id, name: me.name }; api.send(e); }
     api.changed();
@@ -291,7 +313,8 @@ export function createRace(api) {
     get kick() { return st.mine ? st.kick : null; },
     get progress() { return st.mine ? +st.prog.toFixed(1) : undefined; },
     get running() { return st.running; },
-    get lobbyText() { return st.running ? '🏁 레이스 진행 중 · 끝나면 참가할 수 있어요' : inLobby() ? `🏁 ${Math.max(0, Math.ceil((st.startAt - now()) / 1000))}초 뒤 출발 · ${st.lobby.size}명 · ${api.isTouch ? '취소 (누르기)' : 'E 취소'}` : `🏁 ${api.isTouch ? '킥보드 레이스 참가 (누르기)' : 'E  킥보드 레이스 참가'}${st.lobby.size ? ` · ${st.lobby.size}명 대기 중` : ''}`; },
+    get lobbyText() { return st.running ? '🏁 레이스 진행 중 · 끝나면 칸에 다시 들어와요' : `🏁 ${Math.max(0, Math.ceil((st.startAt - now()) / 1000))}초 뒤 출발 · ${st.lobby.size}명 참가 · 칸 밖으로 나가면 취소`; },
+    get joined() { return inLobby(); },
     get state() { return st; },
   };
 }

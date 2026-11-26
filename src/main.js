@@ -15,7 +15,7 @@ import { XMAS, createPlazaTree, createSleigh, SLEIGH } from './xmas.js';
 import { createShop, createShopUI, SHOP, ITEMS } from './shop.js';
 import { createSnowField, createSnowFight } from './snow.js';
 import { createXmas } from './advent.js';
-import { createRace, createRaceTrack, RACE } from './race.js';
+import { createRace, createRaceTrack, RACE, inRaceZone } from './race.js';
 import { createPartyStage, inParty, DANCES } from './party.js';
 import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, ACC_SLOTS, parseLook, lookKey } from './avatar.js';
@@ -644,11 +644,16 @@ function collide(x, z) {
       }
     }
   }
-  const out = player.floor === 0;
-  const lx = out ? LOT - 0.4 : HX - 0.5, lz = out ? LOT - 0.4 : HZ - 0.5;
-  return [Math.max(-lx, Math.min(lx, x)), Math.max(-lz, Math.min(lz, z))];
+  return clampFloor(player.floor, x, z);
 }
 
+// 걸어 다닐 수 있는 범위: 층 안 / 1층은 부지 + 정문 앞 광장(🏁 레이스 참가 칸, RACE.plaza)
+function clampFloor(f, x, z) {
+  const lx = f === 0 ? LOT - 0.4 : HX - 0.5, lz = f === 0 ? LOT - 0.4 : HZ - 0.5, zs = f === 0 ? RACE.plaza.z1 : lz;
+  x = Math.max(-lx, Math.min(lx, x)); z = Math.max(-lz, Math.min(zs, z));
+  if (f === 0 && z > lz) x = Math.max(RACE.plaza.x0, Math.min(RACE.plaza.x1, x));
+  return [x, z];
+}
 let moveYaw = null; // 걷는 동안 기준이 되는 방향
 function updatePlayer(dt) {
   let f = 0, s = 0;
@@ -753,7 +758,7 @@ function nearWhat() {
   if (player.floor === INVEST.floor && Math.hypot(player.x - (INVEST.x + (INVEST.s ?? 1) * 1.55), player.z - INVEST.z) < 1.0) return 'invest';
   if (player.floor === 0 && Math.hypot(player.x - SHOP.counter.x, player.z - SHOP.counter.z) < 1.2) return 'shop';
   if (sleigh && player.floor === 0 && !ride.flying && Math.hypot(player.x - (SLEIGH.x - 0.3), player.z - SLEIGH.z) < 2.0) return 'sleigh';
-  if (player.floor === 0 && !race.driving && Math.hypot(player.x - RACE.kiosk.x, player.z - (RACE.kiosk.z - 0.9)) < 1.6) return 'race';
+  if (!race.driving && inRaceZone(player.floor, player.x, player.z)) return 'race';
   if (Math.hypot(player.x - ELEV.x, player.z - ELEV.z) < 1.9) return 'elev';
   if (player.floor === 3) for (const b of BOOTHS) if (Math.hypot(player.x - b.spot.x, player.z - b.spot.z) < 0.85) return { booth: b };
   {
@@ -783,8 +788,7 @@ function tapMove(cx, cy) {
   const fy = FLOORS[player.floor].y;
   const hit = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -fy), new THREE.Vector3());
   if (!hit) return;
-  const lx = player.floor === 0 ? LOT - 0.4 : HX - 0.5, lz = player.floor === 0 ? LOT - 0.4 : HZ - 0.5;
-  const x = THREE.MathUtils.clamp(hit.x, -lx, lx), z = THREE.MathUtils.clamp(hit.z, -lz, lz);
+  const [x, z] = clampFloor(player.floor, hit.x, hit.z);
   if (Math.hypot(x - player.x, z - player.z) > 40) return;
   if (player.sit) standUp();
   if (!walkTo(x, z)) { moveTarget = { x, z, stuck: 0 }; pingMark.position.set(x, fy + 0.04, z); pingMark.visible = true; pingMark.scale.setScalar(1.6); }
@@ -795,9 +799,10 @@ const CELL = 0.25;
 const GRIDS = new Map();
 function gridFor(f) {
   if (GRIDS.has(f)) return GRIDS.get(f);
-  const lx = f === 0 ? LOT - 0.4 : HX - 0.4, lz = f === 0 ? LOT - 0.4 : HZ - 0.4;
-  const nx = Math.ceil((2 * lx) / CELL) + 1, nz = Math.ceil((2 * lz) / CELL) + 1;
+  const lx = f === 0 ? LOT - 0.4 : HX - 0.4, lz = f === 0 ? LOT - 0.4 : HZ - 0.4, zs = f === 0 ? RACE.plaza.z1 : lz;
+  const nx = Math.ceil((2 * lx) / CELL) + 1, nz = Math.ceil((lz + zs) / CELL) + 1;
   const blocked = new Uint8Array(nx * nz);
+  if (f === 0) for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) { const x = -lx + i * CELL, z = -lz + j * CELL; if (z > lz && (x < RACE.plaza.x0 || x > RACE.plaza.x1)) blocked[j * nx + i] = 1; } // 광장 밖
   const pad = R + 0.06;
   for (const c of bld.floors[f].colliders) {
     const x1 = Math.max(0, Math.floor((c.x1 - pad + lx) / CELL)), x2 = Math.min(nx - 1, Math.ceil((c.x2 + pad + lx) / CELL));
@@ -864,7 +869,7 @@ function walkTo(tx, tz, extra = {}) {
 // ---------- 가구 위에 서기 ----------
 // 발밑에 있는 가구 중 발보다 낮은(또는 같은) 가장 높은 윗면 = 서 있을 높이
 function groundAt(x, z, feet) {
-  let g = 0;
+  let g = player.floor === 0 && z > LOT + 0.05 ? -0.3 : 0; // 정문 앞 광장은 부지보다 30cm 낮음
   for (const c of bld.floors[player.floor].colliders) {
     if (c.tall || c.noStand) continue;
     const top = c.top ?? 0.6;
@@ -929,7 +934,7 @@ let camLift = 0;
 function officeCamPose(dt, out) {
   const outside = player.floor === 0 && (Math.abs(player.x) > HX || Math.abs(player.z) > HZ);
   const fy = FLOORS[player.floor].y, top = player.floor === ROOF || outside ? 7 : CEIL - 0.15;
-  const bx = race.driving ? 400 : player.floor === 0 ? LOT : HX, bz = race.driving ? 400 : player.floor === 0 ? LOT : HZ;
+  const bx = race.driving ? 400 : player.floor === 0 ? LOT : HX, bz = race.driving ? 400 : player.floor === 0 ? (player.z > LOT - 3 ? RACE.plaza.z1 + 6 : LOT) : HZ;
   camLift += (((myAvatar && !player.sit) ? myAvatar.ground : 0) - camLift) * 0.1;
   const jumpLift = myAvatar && !player.sit ? Math.max(0, myAvatar.jy - myAvatar.ground) * 0.4 : 0;
   const tx = player.x, ty = fy + 0.85 + camLift + jumpLift, tz = player.z;
@@ -1202,7 +1207,7 @@ function interact() {
   const what = nearWhat();
   if (ride.mine) { if (!ride.flying) rideLeave(); return; }
   if (what === 'sleigh') { rideJoin(); return; }
-  if (what === 'race') { race.join(); return; }
+  if (what === 'race') return; // 칸에 들어가면 자동 참가
   if (player.sit) { standUp(); return; }
   if (what && what.booth) startGame(what.booth);
   else if (what && what.seat) sitDown(what.seat);
@@ -1666,6 +1671,7 @@ function frame() {
   updateSparks(dt);
   snowFight.update(dt);
   race.tick(); raceTrack.update(now); partyStage.update(now);
+  if (myAvatar && !race.driving && !race.running) { const inZ = inRaceZone(player.floor, player.x, player.z); if (inZ !== race.joined) inZ ? race.join() : race.leave(); } // 🏁 칸 안 = 참가
   duelHost.root.visible = !(mode === 'office' && player.floor !== ARENA.floor); duelHost.animate(dt, 0, now);
   if (duelBot.root.visible) duelBot.animate(dt, 0, now);
   if (pingMark.visible) { pingMark.scale.setScalar(Math.max(1, pingMark.scale.x - dt * 3)); pingMark.rotation.z += dt * 2; }
