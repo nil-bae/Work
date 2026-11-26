@@ -2,7 +2,7 @@
 <script type="importmap">{ "imports": { "three": "../../vendor/three/three.module.js", "three/addons/": "../../vendor/three/addons/" } }</script>
 <style>body{margin:0;background:#1c2a24}</style></head><body>
 <script type="module">
-// 부티크 아이템 확인용: ?ids=a,b,c (위 줄 = 앞, 아래 줄 = 뒤)
+// 부티크 아이템 확인용: ?ids=a,b,c (위 줄 = 앞, 아래 줄 = 뒤), &g=m 이면 모두 남자
 import * as THREE from 'three';
 import { Avatar } from '../../src/avatar.js';
 const q = new URLSearchParams(location.search);
@@ -13,7 +13,7 @@ const s = new THREE.Scene(); s.background = new THREE.Color(0x1c2a24);
 s.add(new THREE.HemisphereLight(0xeef2ff, 0x40352c, 2.3)); const k = new THREE.DirectionalLight(0xffffff, 2.2); k.position.set(2, 3, 4); s.add(k);
 const cam = new THREE.PerspectiveCamera(20, W / H, 0.1, 50); cam.position.set(0, 2.6, 14); cam.lookAt(0, 0.55, 0);
 SETS.forEach((acc, i) => [0, Math.PI].forEach((ry, row) => {
-  const g = i % 2 ? 'm' : 'f', a = new Avatar('', '#e8e8e8', g, `${g === 'f' ? 1 : 0}0${i % 5}${g === 'f' ? 1 : 0}0`); a.label.visible = false; if (acc[0].startsWith('kick')) { a.setKick(acc[0]); for (let t = 0; t < 12; t++) a.animate(0.05, 5 * (i % 2), t * 0.05); } else a.setAcc(acc);
+  const g = q.get('g') || (i % 2 ? 'm' : 'f'), a = new Avatar('', '#e8e8e8', g, `${g === 'f' ? 1 : 0}0${i % 5}${g === 'f' ? 1 : 0}0`); a.label.visible = false; if (acc[0].startsWith('kick')) { a.setKick(acc[0]); for (let t = 0; t < 12; t++) a.animate(0.05, 5 * (i % 2), t * 0.05); } else a.setAcc(acc);
   a.root.position.set((i - (SETS.length - 1) / 2) * 1.15, 1.15 - row * 1.55, 0); a.root.rotation.y = acc[0].startsWith('kick') ? (row ? -1.1 : 0.6) : ry + (row ? 0.35 : -0.25); s.add(a.root);
   a.animate?.(0.3, 0, 1.2);
 }));

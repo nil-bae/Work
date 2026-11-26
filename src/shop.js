@@ -39,11 +39,23 @@ export const ITEMS = [
   { id: 'reddress', name: '레드 실크 롱 드레스', icon: '💃', slot: 'body', price: 520000, cat: 'wear' },
   { id: 'navysuit', name: '네이비 더블 수트', icon: '🤵', slot: 'body', price: 480000, cat: 'wear' },
   { id: 'tuxedo', name: '블랙 턱시도', icon: '🎩', slot: 'body', price: 550000, cat: 'wear' },
+  // 🕴 남성 옷 (11-26 '남자 옷이 별로 없다')
+  { id: 'denim', name: '워싱 데님 재킷', icon: '👖', slot: 'body', price: 260000, cat: 'wear', men: 1 },
+  { id: 'varsity', name: '네이비 야구 점퍼', icon: '⚾', slot: 'body', price: 320000, cat: 'wear', men: 1 },
+  { id: 'puffer', name: '블랙 숏패딩', icon: '🧥', slot: 'body', price: 350000, cat: 'wear', men: 1 },
+  { id: 'rider', name: '블랙 가죽 라이더 재킷', icon: '🏍️', slot: 'body', price: 380000, cat: 'wear', men: 1 },
+  { id: 'trench', name: '카멜 트렌치코트', icon: '🧥', slot: 'body', price: 420000, cat: 'wear', men: 1 },
+  { id: 'longcoat', name: '차콜 울 롱코트', icon: '🕴️', slot: 'body', price: 460000, cat: 'wear', men: 1 },
+  { id: 'tie', name: '스트라이프 실크 넥타이', icon: '👔', slot: 'neck', price: 60000, cat: 'wear', men: 1 },
+  { id: 'cap', name: '블랙 볼캡', icon: '🧢', slot: 'head', price: 50000, men: 1 },
+  { id: 'beanie', name: '그레이 니트 비니', icon: '🧶', slot: 'head', price: 40000, men: 1 },
+  { id: 'briefcase', name: '가죽 서류가방', icon: '💼', slot: 'bag', price: 250000, cat: 'bag', men: 1 },
 ];
+for (const id of ['glasses', 'sunglasses', 'backpack', 'muffler', 'navysuit', 'tuxedo']) ITEMS.find((it) => it.id === id).men = 2; /* 남성 칸에도 보이게 (새 남성 옷 다음에) */
 // 🎄 크리스마스 출석 한정판: 팔지 않고 진열만(출석해야 받음) — advent.js
 for (const r of XMAS_REWARDS) ITEMS.push({ id: r.id, name: r.name, icon: r.icon, slot: r.slot, price: 0, cat: 'xmas', limited: r.xday ? '12/25 당일 출석' : `출석 ${r.n}일` });
 for (const it of ITEMS) it.cat ||= 'acc';
-const CATS = { all: '전체', xmas: '🎄 출석 한정', acc: '✨ 액세서리', bag: '👜 가방', wear: '👗 옷', ride: '🛴 탈것' };
+const CATS = { all: '전체', men: '🕴 남성', xmas: '🎄 출석 한정', acc: '✨ 액세서리', bag: '👜 가방', wear: '👗 옷', ride: '🛴 탈것' };
 export const SHOP = { x0: 17.5, x1: 25.5, z0: -8, z1: 0, door: [-5.1, -2.9], counter: { x: 23.1, z: -4 }, clerk: { x: 24.75, z: -4 } };
 const won = (n) => `${Math.round(n).toLocaleString('ko-KR')}원`;
 
@@ -185,7 +197,7 @@ export function createShopUI(api) {
     $('shopCats').innerHTML = Object.entries(CATS).map(([k, v]) => `<button type="button" data-c="${k}" class="${k === cat ? 'on' : ''}">${v}</button>`).join('');
     $('shopCats').querySelectorAll('button').forEach((b) => (b.onclick = () => { cat = b.dataset.c; render(); }));
     $('shopCash').innerHTML = `지갑 현금 <b>${won(money.cash())}</b>`;
-    const list = (tab === 'buy' ? ITEMS : ITEMS.filter((it) => owned.includes(it.id))).filter((it) => cat === 'all' || it.cat === cat);
+    const list = (tab === 'buy' ? ITEMS : ITEMS.filter((it) => owned.includes(it.id))).filter((it) => cat === 'all' || it.cat === cat || (cat === 'men' && it.men)).sort((a, b) => cat === 'men' ? a.men - b.men : 0);
     $('shopGrid').innerHTML = list.length ? list.map((it) => {
       const has = owned.includes(it.id), on = wear[it.slot] === it.id;
       const btn = !has && it.limited ? `<button data-xmas class="limited">🔒 ${it.limited}</button>` : !has ? `<button data-buy="${it.id}" ${money.cash() < it.price ? 'class="poor"' : ''}>${won(it.price)}</button>` : `<button data-wear="${it.id}" class="${on ? 'on' : ''}">${it.slot === 'ride' ? (on ? '✔ 타는 중 (내리기)' : '🛴 타기') : on ? '✔ 착용 중 (벗기)' : '착용하기'}</button>`;

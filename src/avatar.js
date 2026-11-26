@@ -71,17 +71,17 @@ const SKIN = 0xffe0c4, EYE = 0x241a16;
 export const SCALE = 1.0; // 2등신 캐릭터 (약 1.05m, 교회 메타버스와 같은 크기)
 
 // 👗 꾸미기: 머리 모양 · 머리 색 · 옷 종류 · 하의(바지/치마) · 하의 색. 숫자 5개짜리 글자로 주고받음 (예: '10021')
-export const HAIR_STYLES = ['짧은 머리', '긴 생머리', '단발', '묶은 머리', '똥머리', '뽀글 파마', '땋은 머리', '웨이브'];
+export const HAIR_STYLES = ['짧은 머리', '긴 생머리', '단발', '묶은 머리', '똥머리', '뽀글 파마', '땋은 머리', '웨이브', '댄디컷', '가르마펌', '리젠트', '투블럭', '높은 포니테일', '양갈래', '허쉬컷']; // 8~14: 11-26 추가 (look 첫 글자는 36진수: 8 9 a b c d e)
 export const HAIR_COLORS = [0x3b2516, 0x17130f, 0x6b3f22, 0xa8743f, 0xe3c37c, 0xa9aab2, 0xe58fb0, 0x5a78d6];
 export const OUTFITS = ['셔츠', '정장', '후드티', '니트', '반팔 티'];
 export const BOTTOMS = ['바지', '치마'];
 export const BOTTOM_COLORS = [null, 0x2c3446, 0x1e1e22, 0xc9b59a, 0x7b8089, 0x4a6fa8, 0x6a4a34]; // null = 상의에 맞춰 자동
 export function parseLook(look, gender) {
   const f = gender === 'f', d = String(look || '');
-  const n = (i, max, def) => { const v = parseInt(d[i], 10); return Number.isInteger(v) && v >= 0 && v < max ? v : def; };
+  const n = (i, max, def) => { const v = parseInt(d[i], 36); return Number.isInteger(v) && v >= 0 && v < max ? v : def; };
   return { hs: n(0, HAIR_STYLES.length, f ? 1 : 0), hc: n(1, HAIR_COLORS.length, 0), ot: n(2, OUTFITS.length, 0), bt: n(3, BOTTOMS.length, f ? 1 : 0), bc: n(4, BOTTOM_COLORS.length, 0) };
 }
-export const lookKey = (L) => `${L.hs}${L.hc}${L.ot}${L.bt}${L.bc}`;
+export const lookKey = (L) => `${L.hs.toString(36)}${L.hc}${L.ot}${L.bt}${L.bc}`;
 
 function shade(hex, k) { return new THREE.Color(hex).multiplyScalar(k); }
 function isLight(hex) { const c = new THREE.Color(hex); return c.r * 0.3 + c.g * 0.59 + c.b * 0.11 > 0.6; }
@@ -90,9 +90,10 @@ const bottomOf = (g, top) => g === 'f' ? (isLight(top) ? 0x39415a : 0xc9b59a) : 
 // 머리 모양
 function hair(p, hs, HAIR, f, H) {
   const curly = hs === 5;
-  p.add(new THREE.SphereGeometry(0.272, 28, 20, 0, Math.PI * 2, 0, Math.PI * 0.5), HAIR, 0, H, -0.01, { rx: -0.42 });
-  for (const sx of [-1, 1]) p.add(new THREE.SphereGeometry(0.09, 12, 10), HAIR, sx * 0.21, H + 0.04, 0.05, { sx: 0.55, sy: 1.15, sz: 0.9 });
-  for (const [x, y, rz] of [[-0.1, 0.118, -0.35], [0, 0.128, 0], [0.1, 0.118, 0.35]]) p.add(new THREE.SphereGeometry(0.08, 14, 10), HAIR, x, H + y, 0.19, { sx: 0.95, sy: 0.42, sz: 0.5, rz });
+  const fade = new THREE.Color(HAIR).multiplyScalar(0.62).getHex(); // 투블럭 옆머리 (짧게 민 부분)
+  p.add(new THREE.SphereGeometry(0.272, 28, 20, 0, Math.PI * 2, 0, Math.PI * 0.5), hs === 11 ? fade : HAIR, 0, H, -0.01, { rx: -0.42 });
+  for (const sx of [-1, 1]) p.add(new THREE.SphereGeometry(0.09, 12, 10), hs === 11 ? fade : HAIR, sx * 0.21, H + 0.04, 0.05, { sx: 0.55, sy: hs >= 8 && hs <= 11 ? 0.9 : 1.15, sz: 0.9 });
+  if (hs < 8 || hs >= 12 && hs !== 14) for (const [x, y, rz] of [[-0.1, 0.118, -0.35], [0, 0.128, 0], [0.1, 0.118, 0.35]]) p.add(new THREE.SphereGeometry(0.08, 14, 10), HAIR, x, H + y, 0.19, { sx: 0.95, sy: 0.42, sz: 0.5, rz });
   if (hs === 0) {
     p.add(new THREE.ConeGeometry(0.022, 0.08, 8), HAIR, 0.03, H + 0.275, 0.02, { rx: -0.5, rz: -0.4 });            // 삐침 머리
   } else if (hs === 1) {
@@ -146,6 +147,48 @@ function hair(p, hs, HAIR, f, H) {
     for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
       p.add(new THREE.SphereGeometry(0.07, 12, 10), HAIR, sx * (0.215 + (i % 2 ? 0.03 : 0)), H - 0.1 - i * 0.09, 0.02 - i * 0.015, { sx: 0.75, sy: 1.25 });
     }
+  } else if (hs === 8) {
+    // 댄디컷 · 쉼표머리: 둥근 버섯 모양 + 이마를 덮는 앞머리 + 한쪽 끝을 쉼표처럼 말아 넘김
+    p.add(new THREE.SphereGeometry(0.275, 24, 18), HAIR, 0, H + 0.05, -0.03, { sx: 1.04, sy: 0.92, sz: 0.95 });
+    for (const [x, y] of [[-0.14, 0.1], [-0.05, 0.095], [0.04, 0.1]]) p.add(new THREE.SphereGeometry(0.075, 14, 10), HAIR, x, H + y, 0.2, { sx: 0.95, sy: 0.5, sz: 0.5, rz: x * 1.2 });
+    p.add(new THREE.TorusGeometry(0.034, 0.017, 8, 14, Math.PI * 1.4), HAIR, 0.12, H + 0.075, 0.215, { rz: -0.6 });     // 쉼표
+  } else if (hs === 9) {
+    // 가르마펌 6:4: 왼쪽에서 가르마를 타고 오른쪽으로 크게 넘긴 볼륨 + 이마가 살짝 보임
+    p.add(new THREE.SphereGeometry(0.278, 24, 18), HAIR, 0, H + 0.06, -0.03, { sx: 1.05, sy: 0.95, sz: 0.95 });
+    p.add(new THREE.SphereGeometry(0.13, 16, 12), HAIR, 0.06, H + 0.17, 0.15, { sx: 1.45, sy: 0.6, sz: 0.75, rz: -0.28 });      // 넘긴 앞머리
+    p.add(new THREE.SphereGeometry(0.08, 12, 10), HAIR, 0.19, H + 0.06, 0.15, { sx: 0.7, sy: 1.0, sz: 0.8 });                   // 오른쪽으로 흘러내린 끝
+    p.add(new THREE.SphereGeometry(0.07, 12, 10), HAIR, -0.15, H + 0.2, 0.12, { sx: 0.9, sy: 0.55, sz: 0.7, rz: 0.5 });         // 가르마 왼쪽
+  } else if (hs === 10) {
+    // 리젠트 · 올백: 앞머리를 위로 세워 뒤로 넘김 (이마가 다 보임)
+    p.add(new THREE.SphereGeometry(0.27, 24, 18), HAIR, 0, H + 0.04, -0.05, { sx: 1.02, sy: 0.95, sz: 0.92 });
+    p.add(new THREE.SphereGeometry(0.14, 18, 12), HAIR, 0, H + 0.2, 0.13, { sx: 1.5, sy: 0.62, sz: 0.95, rx: -0.55 });           // 세운 앞머리 (이마 위로 둥글게)
+    for (const sx of [-1, 1]) p.add(new THREE.SphereGeometry(0.06, 10, 8), HAIR, sx * 0.17, H + 0.16, 0.12, { sx: 0.8, sy: 0.5, sz: 1.2, ry: sx * 0.5 }); // 옆으로 넘긴 결
+  } else if (hs === 11) {
+    // 투블럭 · 버즈컷: 옆은 짧게 민 짙은 색, 위만 짧게 남김 + 짧은 앞머리 끝
+    p.add(new THREE.SphereGeometry(0.262, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.42), HAIR, 0, H + 0.035, -0.015, { sx: 1.0, sy: 0.95, sz: 1.0, rx: -0.2 });
+    for (const x of [-0.07, 0, 0.07]) p.add(new THREE.SphereGeometry(0.045, 10, 8), HAIR, x, H + 0.17, 0.19, { sx: 1.1, sy: 0.45, sz: 0.6, rx: -0.4 }); // 짧은 앞머리 끝
+  } else if (hs === 12) {
+    // 높은 포니테일: 정수리 뒤에서 높게 묶어 뒤로 흘러내림
+    p.add(new THREE.SphereGeometry(0.26, 24, 18), HAIR, 0, H + 0.02, -0.05, { sx: 1.0, sy: 0.95, sz: 0.88 });
+    p.add(new THREE.TorusGeometry(0.04, 0.015, 6, 14), 0xf28bb0, 0, H + 0.22, -0.2, { rx: 0.9 });                              // 머리끈
+    for (let i = 0; i <= 12; i++) { const t = i / 12, y = 0.25 - t * 0.52, z = -0.25 - Math.sin(Math.min(1, t * 1.6) * Math.PI / 2) * 0.12 + t * t * 0.07; p.add(new THREE.SphereGeometry(0.078 - t * 0.035, 12, 10), HAIR, 0, H + y, z, { sx: 0.95, sy: 1.25, sz: 0.85 }); } // 이어진 꼬리
+  } else if (hs === 13) {
+    // 양갈래: 양쪽 귀 위에서 묶어 바깥으로 살짝 뻗친 두 갈래
+    p.add(new THREE.SphereGeometry(0.262, 24, 18), HAIR, 0, H + 0.02, -0.05, { sx: 1.0, sy: 0.96, sz: 0.88 });
+    for (const sx of [-1, 1]) {
+      p.add(new THREE.TorusGeometry(0.032, 0.013, 6, 12), 0xf28bb0, sx * 0.25, H + 0.06, -0.08, { ry: Math.PI / 2, rx: sx * 0.6 });
+      for (let i = 0; i <= 8; i++) { const t = i / 8; p.add(new THREE.SphereGeometry(0.068 - t * 0.03, 12, 10), HAIR, sx * (0.29 + Math.sin(t * Math.PI) * 0.045), H + 0.02 - t * 0.32, -0.08, { sx: 0.9, sy: 1.25 }); } // 이어진 갈래
+    }
+  } else if (hs === 14) {
+    // 허쉬컷: 층을 많이 낸 어깨 길이 + 끝이 바깥으로 뻗침 + 가볍게 내린 시스루 앞머리
+    p.add(new THREE.SphereGeometry(0.275, 24, 18), HAIR, 0, H - 0.04, -0.08, { sx: 1.06, sy: 1.08, sz: 0.84 });
+    for (let i = 0; i < 5; i++) { const x = -0.14 + i * 0.07; p.add(new THREE.SphereGeometry(0.05, 10, 8), HAIR, x, H + 0.11 - Math.abs(x) * 0.25, 0.205, { sx: 0.8, sy: 0.7, sz: 0.45, rz: x * 2 }); }
+    for (const sx of [-1, 1]) {
+      p.add(new THREE.SphereGeometry(0.08, 12, 10), HAIR, sx * 0.22, H - 0.04, 0.05, { sx: 0.6, sy: 1.3, sz: 0.8 });          // 옆 1단
+      p.add(new THREE.SphereGeometry(0.075, 12, 10), HAIR, sx * 0.25, H - 0.17, 0.0, { sx: 0.7, sy: 1.1, sz: 0.85 });         // 2단
+      p.add(new THREE.SphereGeometry(0.06, 12, 10), HAIR, sx * 0.3, H - 0.27, -0.03, { sx: 0.95, sy: 0.6, sz: 0.85, rz: sx * 0.6 }); // 바깥으로 뻗친 끝
+    }
+    p.add(new THREE.SphereGeometry(0.2, 18, 12), HAIR, 0, H - 0.22, -0.12, { sx: 1.35, sy: 0.55, sz: 0.85 });                  // 뒷머리 끝 층
   }
 }
 
@@ -330,6 +373,23 @@ const AM = {
   giftB: new THREE.MeshStandardMaterial({ color: 0x2f6fd8, roughness: 0.4 }),
   ice: new THREE.MeshStandardMaterial({ color: 0xd8f1ff, roughness: 0.08, metalness: 0.35, emissive: 0x2f78c8, emissiveIntensity: 0.55, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
   star: new THREE.MeshStandardMaterial({ color: 0xffd447, roughness: 0.22, metalness: 0.65, emissive: 0xc88a00, emissiveIntensity: 0.8 }),
+  // ----- 🕴 남성 옷 (11-26 '남자 옷이 별로 없다') -----
+  camel: new THREE.MeshStandardMaterial({ color: 0xc19a6b, roughness: 0.85 }),
+  camelDk: new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.8 }),
+  charcoal: new THREE.MeshStandardMaterial({ color: 0x3a3d44, roughness: 0.9 }),
+  rider: new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.32, metalness: 0.15 }),
+  silver: new THREE.MeshStandardMaterial({ color: 0xd8dbe0, roughness: 0.25, metalness: 0.9 }),
+  varsity: new THREE.MeshStandardMaterial({ color: 0x1d2a52, roughness: 0.8 }),
+  varsityW: new THREE.MeshStandardMaterial({ color: 0xf1e9d6, roughness: 0.7 }),
+  varsityR: new THREE.MeshStandardMaterial({ color: 0xc23a3a, roughness: 0.7 }),
+  denim: new THREE.MeshStandardMaterial({ color: 0x5f86b5, roughness: 0.95 }),
+  denimDk: new THREE.MeshStandardMaterial({ color: 0x3f5f8a, roughness: 0.95 }),
+  puffer: new THREE.MeshStandardMaterial({ color: 0x1e1f24, roughness: 0.45, metalness: 0.05 }),
+  capBlack: new THREE.MeshStandardMaterial({ color: 0x202024, roughness: 0.8 }),
+  beanie: new THREE.MeshStandardMaterial({ color: 0x9a9ca3, roughness: 1 }),
+  tieNavy: new THREE.MeshStandardMaterial({ color: 0x1c2b5a, roughness: 0.45 }),
+  tieStripe: new THREE.MeshStandardMaterial({ color: 0xd7b35a, roughness: 0.4 }),
+  brief: new THREE.MeshStandardMaterial({ color: 0x5a3520, roughness: 0.45 }),
 };
 // 🛴 킥보드 (부티크에서 삼, 발밑에 붙음). 색: 기본 블랙 · 민트 · 크롬 골드
 export const KICKS = {
@@ -596,6 +656,91 @@ export function makeAcc(id) {
       add(new THREE.SphereGeometry(0.013, 10, 8), AM.satin, 0, 0.35, 0.23);
       g.userData.sleeve = { mat: AM.tux, r: 0.058, cuff: AM.shirtW };
       break;
+    // ----- 🕴 남성 옷 (11-26) -----
+    case 'trench': case 'longcoat': { // 카멜 트렌치코트(허리끈 · 더블 단추) / 차콜 울 롱코트 — 무릎 위까지 내려오는 긴 코트
+      const tr = id === 'trench', m = tr ? AM.camel : AM.charcoal;
+      shell(add, m);
+      add(new THREE.CylinderGeometry(0.212, 0.24, 0.16, 26, 1, true), m, 0, 0.18, 0, 0, 0, 0, 1, 1, 1.1);   // 아랫단
+      suitFront(add, m);
+      add(new THREE.BoxGeometry(0.012, 0.3, 0.012), tr ? AM.camelDk : AM.black, 0, 0.25, 0.236, -0.06, 0, 0); // 앞 여밈선
+      if (tr) {
+        add(new THREE.TorusGeometry(0.212, 0.014, 6, 28), AM.camelDk, 0, 0.3, 0, Math.PI / 2, 0, 0, 1, 1.1, 1); // 허리끈
+        add(new THREE.BoxGeometry(0.04, 0.03, 0.012), AM.gold, 0.06, 0.3, 0.232);
+        add(new THREE.BoxGeometry(0.02, 0.1, 0.01), AM.camelDk, 0.08, 0.24, 0.236, 0, 0, 0.15);                 // 늘어진 끈 끝
+        for (const y of [0.43, 0.37]) for (const e of [-1, 1]) add(new THREE.SphereGeometry(0.011, 8, 6), AM.camelDk, e * 0.05, y, 0.218 + (0.56 - y) * 0.113 - 0.01);
+        for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.1, 0.012, 0.03), AM.camelDk, e * 0.13, 0.545, 0.05, 0, 0, e * -0.2); // 견장
+      } else {
+        for (const y of [0.42, 0.34]) add(new THREE.SphereGeometry(0.012, 8, 6), AM.black, 0.02, y, 0.218 + (0.56 - y) * 0.113 - 0.01);
+        for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.07, 0.012, 0.012), AM.black, e * 0.1, 0.33, 0.226, -0.1, e * 0.4, 0); // 주머니 덮개
+      }
+      g.userData.sleeve = { mat: m, r: 0.058, cuff: tr ? AM.camelDk : m };
+      break;
+    }
+    case 'rider': // 블랙 가죽 라이더 재킷: 비스듬한 은색 지퍼 + 큰 깃 + 허리 벨트
+      shell(add, AM.rider);
+      rod(g, [0.07, 0.54, 0.205], [-0.035, 0.29, 0.235], 0.006, AM.silver);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.075, 0.14, 0.014), AM.rider, e * 0.07, 0.5, 0.215, -0.15, 0, e * 0.55); // 깃
+      add(new THREE.TorusGeometry(0.212, 0.012, 6, 28), AM.rider, 0, 0.275, 0, Math.PI / 2, 0, 0, 1, 1.1, 1);
+      add(new THREE.BoxGeometry(0.035, 0.025, 0.012), AM.silver, 0.1, 0.276, 0.222, 0, 0.45, 0);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.05, 0.006, 0.01), AM.silver, e * 0.1, 0.36, 0.226, -0.1, e * 0.4, -e * 0.3); // 주머니 지퍼
+      g.userData.sleeve = { mat: AM.rider, r: 0.058, cuff: AM.silver };
+      break;
+    case 'varsity': // 네이비 야구 점퍼: 크림 소매 + 줄무늬 시보리 + W 와펜
+      shell(add, AM.varsity);
+      for (const [y, mt] of [[0.27, AM.varsityW], [0.285, AM.varsityR], [0.3, AM.varsityW]]) add(new THREE.TorusGeometry(0.211, 0.008, 6, 28), mt, 0, y, 0, Math.PI / 2, 0, 0, 1, 1.1, 1);
+      add(new THREE.TorusGeometry(0.11, 0.016, 6, 22), AM.varsityW, 0, 0.555, 0.02, Math.PI / 2 - 0.2, 0, 0);  // 목 시보리
+      for (const y of [0.5, 0.44, 0.38, 0.32]) add(new THREE.CylinderGeometry(0.011, 0.011, 0.006, 10), AM.varsityW, 0, y, 0.218 + (0.56 - y) * 0.113 - 0.006, Math.PI / 2, 0, 0);
+      add(new THREE.BoxGeometry(0.075, 0.075, 0.008), AM.varsityW, -0.09, 0.45, 0.214, -0.12, -0.42, 0);        // 왼쪽 가슴 와펜
+      { const W = [[-0.02, 0.02, 0.2], [0.02, -0.02, -0.2]]; for (const [ox, , r] of W) for (const sx of [-0.016, 0.016]) add(new THREE.BoxGeometry(0.008, 0.05, 0.006), AM.varsityR, -0.09 + sx + ox * 0.5, 0.45, 0.22, -0.12, -0.42, r); }
+      g.userData.sleeve = { mat: AM.varsityW, r: 0.058, cuff: AM.varsityR };
+      break;
+    case 'denim': // 워싱 데님 재킷: 가슴 주머니 2 + 은단추 + 진한 박음질
+      shell(add, AM.denim);
+      for (const e of [-1, 1]) {
+        add(new THREE.BoxGeometry(0.07, 0.06, 0.01), AM.denimDk, e * 0.075, 0.45, 0.214, -0.12, e * 0.4, 0);
+        add(new THREE.SphereGeometry(0.008, 8, 6), AM.silver, e * 0.075, 0.47, 0.22);
+        add(new THREE.BoxGeometry(0.07, 0.1, 0.014), AM.denim, e * 0.06, 0.52, 0.205, -0.25, 0, e * 0.6);      // 깃
+        add(new THREE.BoxGeometry(0.006, 0.2, 0.006), AM.denimDk, e * 0.1, 0.36, 0.222, -0.1, e * 0.4, 0);       // 박음질
+      }
+      for (const y of [0.5, 0.43, 0.36, 0.29]) add(new THREE.SphereGeometry(0.009, 8, 6), AM.silver, 0, y, 0.218 + (0.56 - y) * 0.113 - 0.008);
+      add(new THREE.TorusGeometry(0.212, 0.012, 6, 28), AM.denimDk, 0, 0.27, 0, Math.PI / 2, 0, 0, 1, 1.1, 1);
+      g.userData.sleeve = { mat: AM.denim, r: 0.058, cuff: AM.denimDk };
+      break;
+    case 'puffer': // 블랙 숏패딩: 빵빵한 칸 + 높은 목 + 은색 지퍼
+      shell(add, AM.puffer);
+      for (const y of [0.29, 0.36, 0.43, 0.5]) add(new THREE.TorusGeometry(0.19 + (0.56 - y) * 0.113, 0.028, 8, 28), AM.puffer, 0, y, 0, Math.PI / 2, 0, 0, 1, 1.1, 1);
+      add(new THREE.CylinderGeometry(0.125, 0.15, 0.08, 22, 1, true), AM.puffer, 0, 0.585, 0.01);           // 높은 목
+      add(new THREE.SphereGeometry(0.13, 18, 12), AM.puffer, 0, 0.575, -0.13, 0, 0, 0, 1.35, 0.85, 0.95);    // 뒤 모자(후드티 모자가 비치지 않게)
+      add(new THREE.BoxGeometry(0.008, 0.33, 0.008), AM.silver, 0, 0.43, 0.25, -0.1, 0, 0);
+      g.userData.sleeve = { mat: AM.puffer, r: 0.066, cuff: AM.black };
+      break;
+    case 'cap': { // 블랙 볼캡 (챙이 앞으로)
+      add(new THREE.SphereGeometry(0.288, 26, 12, 0, Math.PI * 2, 0, Math.PI / 2), AM.capBlack, 0, H0 + 0.07, -0.01, 0, 0, 0, 1, 0.92, 1.04);
+      add(new THREE.CircleGeometry(0.288, 26), AM.capBlack, 0, H0 + 0.071, -0.01, Math.PI / 2, 0, 0);
+      add(new THREE.CylinderGeometry(0.2, 0.2, 0.016, 24, 1, false, -Math.PI / 2, Math.PI), AM.capBlack, 0, H0 + 0.085, 0.2, 0.12, 0, 0, 1, 1, 1.15); // 챙
+      add(new THREE.SphereGeometry(0.02, 8, 6), AM.capBlack, 0, H0 + 0.335, -0.01);                            // 꼭지 단추
+      add(new THREE.BoxGeometry(0.08, 0.04, 0.006), AM.white, 0, H0 + 0.2, 0.258, -0.5, 0, 0);                  // 앞 로고 자리(흰 패치)
+      break;
+    }
+    case 'beanie': // 그레이 니트 비니 (접은 단)
+      add(new THREE.SphereGeometry(0.292, 26, 12, 0, Math.PI * 2, 0, Math.PI / 2), AM.beanie, 0, H0 + 0.06, -0.01, 0, 0, 0, 1, 1.12, 1.04);
+      add(new THREE.CircleGeometry(0.292, 26), AM.beanie, 0, H0 + 0.061, -0.01, Math.PI / 2, 0, 0);
+      add(new THREE.CylinderGeometry(0.3, 0.302, 0.1, 30, 1, true), AM.beanie, 0, H0 + 0.1, -0.01, 0, 0, 0, 1, 1, 1.04);
+      for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; add(new THREE.BoxGeometry(0.012, 0.1, 0.008), AM.charcoal, Math.sin(a) * 0.303, H0 + 0.1, Math.cos(a) * 0.315 - 0.01, 0, a, 0); }
+      break;
+    case 'tie': // 스트라이프 실크 넥타이 (목)
+      add(new THREE.BoxGeometry(0.034, 0.026, 0.016), AM.tieNavy, 0, 0.535, 0.222, -0.12, 0, 0);
+      add(new THREE.BoxGeometry(0.03, 0.17, 0.008), AM.tieNavy, 0, 0.44, 0.232, -0.12, 0, 0);
+      add(new THREE.ConeGeometry(0.021, 0.025, 4), AM.tieNavy, 0, 0.346, 0.243, Math.PI - 0.12, Math.PI / 4, 0, 1, 1, 0.4);
+      for (const y of [0.5, 0.46, 0.42, 0.38]) add(new THREE.BoxGeometry(0.034, 0.006, 0.004), AM.tieStripe, 0, y, 0.237 + (0.5 - y) * 0.12, -0.12, 0, 0.6);
+      break;
+    case 'briefcase': // 가죽 서류가방 (손에 듦)
+      g.userData.hand = true;
+      add(new THREE.BoxGeometry(0.2, 0.14, 0.055), AM.brief, 0, -0.39, 0.02);
+      add(new THREE.BoxGeometry(0.202, 0.006, 0.057), AM.camelDk, 0, -0.355, 0.02);
+      add(new THREE.TorusGeometry(0.035, 0.009, 6, 14, Math.PI), AM.brief, 0, -0.32, 0.02);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(0.022, 0.018, 0.06), AM.gold, e * 0.06, -0.345, 0.02);
+      break;
     // ----- 🎄 크리스마스 출석 한정판 (부티크에서 안 팖, advent.js) -----
     case 'rudolph': { // 루돌프 머리띠: 통통한 펠트 사슴뿔 + 작은 사슴 귀 + 방울 + 호랑가시
       add(new THREE.TorusGeometry(0.27, 0.014, 6, 32, Math.PI), AM.antler, 0, H0 + 0.0, 0.0, 0, 0, 0, 1.04, 1.12, 1); // 귀에서 귀로 넘어가는 띠
@@ -785,7 +930,7 @@ export class Avatar {
       const sl = a.userData.sleeve;
       if (sl) for (const arm of [this.armL, this.armR]) {
         const sg = new THREE.Group();
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(sl.r * 0.95, sl.r, 0.22, 12), sl.mat); m.position.y = -0.11; sg.add(m);
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(sl.r * 0.95, sl.r, 0.25, 12), sl.mat); m.position.y = -0.095; /* 11-26: 어깨 윗부분(기본 옷 색)이 비치지 않게 조금 위까지 */ sg.add(m);
         const c = new THREE.Mesh(new THREE.CylinderGeometry(sl.r + 0.006, sl.r + 0.006, 0.035, 12), sl.cuff); c.position.y = -0.21; sg.add(c);
         arm.add(sg); this.accExtra.push(sg);
       }
