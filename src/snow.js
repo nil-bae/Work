@@ -181,16 +181,20 @@ export function createSnowFight(api) {
       spawn(e, REMOTE_DELAY);
       const p = peers.get(e.by); if (p) { p.av.punch(api.now()); p.ry = Math.atan2(e.vx, e.vz); }
     } else if (e.k === 'hit') {
+      /* 11-26: 맞았는지는 던진 사람 화면이 정함(맞은 사람이 자리를 비웠거나 화면이 늦어도 상금이 들어오게) */
       const b = balls.find((q) => q.id === e.bid); if (b) kill(b, false);
+      if (e.id === me.id) { gotIt(e.by); return; }
       const v = peers.get(e.id);
       if (v) { v.av.hurt(api.now()); puff(v.x, (v.av.root.position.y || 0) + 0.8, v.z, 1.1); }
-      if (e.by === me.id) {
-        hits++;
-        const g = reward(PAY_HIT);
-        api.toast(`🎯 ${e.name}님을 맞혔어요!${g ? ` +${won(g)}` : ''}`);
-        api.ding();
-      }
     }
+  }
+  function gotIt(by) {
+    const av = api.avatar(), p = api.player(); gotHit++;
+    if (av) { av.hurt(api.now()); puff(p.x, _feet(av) + 0.8, p.z, 1.1); }
+    api.thump();
+    splatT = 1; const sp = $('snowSplat'); if (sp) { sp.hidden = false; sp.style.opacity = '1'; }
+    const who = peers.get(by); api.toast(`❄ ${who ? `${who.name}님의` : ''} 눈덩이에 맞았어요!`);
+    hud();
   }
 
   const _feet = (av) => av?.root.position.y || 0;
@@ -223,21 +227,19 @@ export function createSnowFight(api) {
           }
         }
         if (gone) break;
-        // 나: 내가 맞았는지는 내 화면이 판단
-        const av = api.avatar();
-        if (b.by !== me.id && inField && av && Math.hypot(b.x - p.x, b.z - p.z) < 0.34 && b.y > _feet(av) && b.y < _feet(av) + 1.12) {
-          kill(b, false); gone = true; gotHit++;
-          api.send({ t: 'snow', k: 'hit', bid: b.id, by: b.by, id: me.id, name: me.name });
-          av.hurt(api.now()); puff(p.x, _feet(av) + 0.8, p.z, 1.1); api.thump();
-          splatT = 1; const sp = $('snowSplat'); if (sp) { sp.hidden = false; sp.style.opacity = '1'; }
-          const who = peers.get(b.by); api.toast(`❄ ${who ? `${who.name}님의` : ''} 눈덩이에 맞았어요!`);
-          hud();
-          break;
-        }
-        // 다른 사람: 내 화면에서는 부딪히면 터지는 모습만 (점수는 맞은 사람 화면이 정함)
+        // 다른 사람: 내 눈덩이가 내 화면에서 맞으면 명중(상금) + 맞은 사람에게 알림. 남의 눈덩이는 터지는 모습만
         for (const [id, q] of peers) {
           if (id === b.by || !inSnow(q.floor, q.x, q.z)) continue;
-          if (Math.hypot(b.x - q.x, b.z - q.z) < 0.3 && b.y > _feet(q.av) && b.y < _feet(q.av) + 1.1) { kill(b); gone = true; break; }
+          if (Math.hypot(b.x - q.x, b.z - q.z) < 0.4 && b.y > _feet(q.av) && b.y < _feet(q.av) + 1.15) {
+            kill(b, b.by !== me.id); gone = true;
+            if (b.by === me.id) {
+              api.send({ t: 'snow', k: 'hit', bid: b.id, by: me.id, id, name: q.name });
+              q.av.hurt(api.now()); puff(q.x, _feet(q.av) + 0.8, q.z, 1.1);
+              hits++; const g = reward(PAY_HIT);
+              api.toast(`🎯 ${q.name}님을 맞혔어요!${g ? ` +${won(g)}` : ''}`); api.ding(); hud();
+            }
+            break;
+          }
         }
       }
       if (!gone) b.m.position.set(b.x, b.y, b.z);
