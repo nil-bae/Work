@@ -219,7 +219,7 @@ function showToast(text, onClick) {
   playBeep(740, 0.12);
 }
 // 💰 월급 · 지갑 · 💹 투자
-const money = createMoney({ $, me, openItems: () => shopUI.open('mine'), openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t, () => money.openWallet()),
+const money = createMoney({ $, me, priceOf: (id) => ITEMS.find((it) => it.id === id && !it.limited)?.price, canGrant: (id) => !!advent?.earned(id), openItems: () => shopUI.open('mine'), openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t, () => money.openWallet()),
   atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), rate: () => (WORK_BONUS && player.sit && player.working ? 2 : 1) /* 💼 시급 2배 이벤트(일하기 중) — 11-26 종료, 다시 하려면 WORK_BONUS = true */, get board() { return bld.investBoard; } });
 $('workChip').onclick = () => money.openWallet();
 // 👜 WORK BOUTIQUE (1층 정원 동쪽): 아이템 사서 착용
@@ -509,7 +509,7 @@ function enter() {
   placeAvatar(myAvatar, player);
   me.jt = Date.now();
   net = connect(me, {
-    onState, onChat: receiveChat, onLeave: removePeer, onSync: (scope) => sendState(true, scope === 'all'), onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); snowFight.onEvent(e); race.onEvent(e); },
+    onState, onChat: receiveChat, onLeave: removePeer, onSync: (scope) => { sendState(true, scope === 'all'); race.announce(); } /* 새로 온 사람에게 내 레이스 참가도 알림 */, onEvent: (e) => { duel.onEvent(e); reqs.onEvent(e); rideEvent(e); snowFight.onEvent(e); race.onEvent(e); },
     onStatus(text, online) { $('netText').textContent = text; $('netDot').classList.toggle('on', online); },
   });
   sysMessage(returning
@@ -1711,5 +1711,6 @@ requestAnimationFrame(() => {
 });
 
 // 테스트용 훅
-window.__work = { danceTap, sitDown, race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+// 🛡 11-26: 개발자 콘솔에서 돈 · 결투를 건드릴 수 있던 통로 → 서버 없는 로컬 데모(점검용)에서만 열어 둠
+if (!supa) window.__work = { danceTap, sitDown, race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;

@@ -202,7 +202,7 @@ export function createShopUI(api) {
     if (!api.atShop()) { alert('부티크 안에서 살 수 있어요 (1층 정원 동쪽 WORK BOUTIQUE).'); return; }
     if (money.cash() < it.price) { alert(`현금이 ${won(it.price - money.cash())} 모자라요. 조금 더 일하면 살 수 있어요! 일급은 일하는 대로 바로 들어와요 💸`); return; }
     if (!confirm(`${it.icon} ${it.name}을(를) ${won(it.price)}에 살까요?`)) return;
-    if (!money.buy(it.id, it.price)) return;
+    if (!money.buy(it.id)) return;
     money.setWear(it.slot, it.id); api.changed();
     api.sys(it.slot === 'ride' ? `🛴 ${it.name}을(를) 샀어요! 바로 올라탔어요. 🛴 버튼(컴퓨터는 R 키)으로 타고 내려요. 건물 안에서도 탈 수 있어요!` : `🛍️ ${it.name}을(를) 샀어요! 바로 착용했어요 ✨`); api.beep();
     render();

@@ -228,8 +228,9 @@ export function createMoney(api) {
   // 👜 상점 아이템 (따로 표를 만들지 않으려고 stocks 안에 __items · __wear로 보관)
   const items = () => (w?.stocks?.__items || []);
   const wear = () => (w?.stocks?.__wear || {});
-  function buy(id, price) {
-    if (!w || w.cash < price || items().includes(id)) return false;
+  function buy(id) { // 🛡 11-26: 가격은 부르는 쪽이 아니라 상품 목록(api.priceOf)에서 직접 찾음 → buy('diacrown', 0) 같은 0원 구매 막음
+    const price = api.priceOf?.(id);
+    if (!w || !(price > 0) || w.cash < price || items().includes(id)) return false;
     w.cash -= price; w.stocks.__items = [...items(), id]; save(); chip(); return true;
   }
   // ⚔️ 결투 판돈
@@ -239,6 +240,7 @@ export function createMoney(api) {
   // 🎄 크리스마스 출석 (stocks 안에 __xmas = ['2026-11-24', ...]) · 출석 선물은 돈 없이 지급
   const xmasDays = () => (w?.stocks?.__xmas || []);
   function stampDay(day) { if (!w || xmasDays().includes(day)) return false; w.stocks.__xmas = [...xmasDays(), day]; save(); return true; }
-  function grant(id) { if (!w || items().includes(id)) return false; w.stocks.__items = [...items(), id]; save(); return true; }
+  // 🛡 출석 조건을 채운 선물만 (api.canGrant)
+  function grant(id) { if (!w || items().includes(id) || !api.canGrant?.(id)) return false; w.stocks.__items = [...items(), id]; save(); return true; }
   return { xmasDays, stampDay, grant, today, items, wear, buy, setWear, spend, earn, cash: () => (w ? w.cash : 0), load, greeting, openWallet, openInvest, save, get ready() { return !!w; }, get mode() { return useLocal ? 'local' : 'server'; } };
 }

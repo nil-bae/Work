@@ -182,7 +182,8 @@ export function createDuel(api) {
       if (e.a === me.id || e.b === me.id) begin(e);
       else if (!e.bot) { watch = { id: e.id, a: e.aName, b: e.bName, aId: e.a, bId: e.b, aHp: HP, bHp: HP, until: performance.now() + (FIGHT + 12) * 1000 }; showBars(true); }
     } else if (e.t === 'hit' && st.active && !st.bot && e.id === st.id && e.to === me.id) {
-      takeHit(e.dmg);
+      const now2 = performance.now(), gap = now2 - (st.lastHitAt || 0); st.lastHitAt = now2;
+      takeHit(Math.max(0, Math.min(Math.round(+e.dmg) || 0, gap > 150 ? 9 : 3))); // 🛡 11-26 위조 방지: 한 번에 최대 9(정상은 0.2초에 최대 6~9)
       send({ t: 'hp', id: st.id, who: me.id, hp: st.myHp });
     } else if (e.t === 'hp') {
       if (st.active && e.id === st.id && e.who === st.opp) st.oppHp = e.hp;
@@ -193,6 +194,7 @@ export function createDuel(api) {
       banner(e.winner ? `🏆 ${wName} 승리!${e.bot ? ' (연습)' : ''}` : `🤝 무승부! (${e.aName} vs ${e.bName})`, 5);
       api.chatLine(e.winner ? `🏆 ${e.aName} vs ${e.bName} — ${wName} 승리!` : `🤝 ${e.aName} vs ${e.bName} 무승부`);
       if (e.loser) api.knockout(e.loser); // 진 사람은 뒤로 쓰러짐
+      if (st.active && e.id === st.id && e.loser === me.id && st.myHp > 0 && st.phase === 'fight' && st.t > 1) { send({ t: 'hp', id: st.id, who: me.id, hp: st.myHp }); return; } // 🛡 내 체력이 남았고 시간도 남았는데 '졌다'는 알림은 위조 → 무시
       if (st.active && e.id === st.id) result(e);
       if (watch && e.id === watch.id) { watch = null; showBars(false); }
     }

@@ -145,11 +145,15 @@ export function createRace(api) {
     return g;
   }
   const inLobby = () => st.lobby.has(me.id);
+  // 11-26 '상대가 안 움직여서 같이 하는 것 같지 않다': 나중에 사이트를 연 사람은 먼저 참가한 사람의 '참가' 신호를 못 받아
+  // 각자 따로 15초를 세고 혼자 달렸음 → 누가 참가하면, 이미 칸에 있던 사람이 자기 참가를 한 번 더 알려서 출발 시각을 맞춤
+  const answered = new Set();
+  function announce() { const m = st.lobby.get(me.id); if (m) api.send({ t: 'race', k: 'join', id: me.id, name: me.name, ts: m.ts, at: st.startAt }); }
 
   function join() {
     if (st.running) { api.toast('🏁 지금 레이스가 진행 중이에요. 끝나면 참가할 수 있어요!'); return; }
     if (inLobby()) { leave(); return; }
-    const ts = now(), at = st.startAt || ts + RACE.lobby * 1000;
+    const ts = now(), SLOT = RACE.lobby * 1000, at = st.startAt || Math.ceil((ts + 6000) / SLOT) * SLOT; // 시계 기준 15초 칸(최소 6초 대기): 모두 같은 시각에 출발
     const e = { t: 'race', k: 'join', id: me.id, name: me.name, ts, at };
     api.send(e); onEvent(e);
   }
@@ -160,6 +164,8 @@ export function createRace(api) {
   function onEvent(e) {
     if (!e || e.t !== 'race') return;
     if (e.k === 'join' && !st.running) {
+      if (e.id !== me.id && inLobby() && !answered.has(e.id)) { answered.add(e.id); announce(); } // 먼저 와 있던 나도 알려 줌
+      if (st.lobby.has(e.id)) st.startAt = Math.min(st.startAt || e.at, e.at); // 출발 시각은 더 이른 쪽으로 맞춤
       if (!st.lobby.has(e.id)) {
         st.lobby.set(e.id, { name: e.name, ts: e.ts });
         st.startAt = st.startAt ? Math.min(st.startAt, e.at) : e.at;
@@ -180,8 +186,9 @@ export function createRace(api) {
   }
 
   function begin() {
+    for (const [id, q] of peers) if (!st.lobby.has(id) && q.floor === 0 && q.x > RACE.zone.x0 && q.x < RACE.zone.x1 && q.z > RACE.zone.z0 && q.z < RACE.zone.z1) st.lobby.set(id, { name: q.name, ts: st.startAt }); // 신호를 놓쳐도 칸 안에 서 있던 사람은 같이
     st.racers = [...st.lobby.entries()].sort((a, b) => a[1].ts - b[1].ts || (a[0] < b[0] ? -1 : 1)).map(([id, v]) => ({ id, name: v.name }));
-    st.lobby.clear(); st.running = true; st.fin = []; st.endAt = st.startAt + (RACE.count + RACE.limit) * 1000; st.resultShown = false;
+    st.lobby.clear(); answered.clear(); st.running = true; st.fin = []; st.endAt = st.startAt + (RACE.count + RACE.limit) * 1000; st.resultShown = false;
     const idx = st.racers.findIndex((r) => r.id === me.id);
     api.sys(`🏁 킥보드 레이스 출발! ${st.racers.map((r) => r.name).join(' · ')}`);
     if (idx < 0) return;
@@ -308,7 +315,7 @@ export function createRace(api) {
   }
   $('raceQuit').onclick = () => { if (confirm('레이스를 그만두고 회사로 돌아갈까요?')) quit(); };
   return {
-    join, leave, onEvent, tick, drive, quit,
+    join, leave, onEvent, tick, drive, quit, announce,
     get driving() { return st.mine; },
     get kick() { return st.mine ? st.kick : null; },
     get progress() { return st.mine ? +st.prog.toFixed(1) : undefined; },
