@@ -2,7 +2,7 @@
 <script type="importmap">{ "imports": { "three": "../../vendor/three/three.module.js", "three/addons/": "../../vendor/three/addons/" } }</script>
 <style>body{margin:0;background:#2a3140}</style></head><body>
 <script type="module">
-// 머리 모양 확인용: ?hs=8,9,10,11 (&g=m) — 줄마다 앞 · 옆 · 뒤
+// 머리 모양 확인용: ?hs=8,9,10,11 (&g=m, &zoom=1 윗줄 얼굴 크게) — 줄마다 앞 · 옆 · 뒤
 import * as THREE from 'three';
 import { Avatar } from '../../src/avatar.js';
 const q = new URLSearchParams(location.search);
@@ -17,5 +17,6 @@ HS.forEach((hs, i) => [0, -Math.PI / 2, Math.PI].forEach((ry, row) => {
   const g = G || (hs >= 12 ? 'f' : 'm'), a = new Avatar('', COLORS[i % 7], g, `${hs.toString(36)}${(i * 3) % 8}${i % 5}${g === 'f' ? 1 : 0}0`); a.label.visible = false;
   a.root.position.set((i - (HS.length - 1) / 2) * 1.0, 2.0 - row * 1.45, 0); a.root.rotation.y = ry + (row === 0 ? -0.25 : 0); s.add(a.root);
 }));
+if (q.get('zoom')) { cam.fov = 9; cam.position.set(0, 2.4, 14); cam.lookAt(0, 2.1, 0); cam.updateProjectionMatrix(); }
 r.render(s, cam); window.done = true;
 </script></body></html>
