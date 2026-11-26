@@ -16,13 +16,15 @@ const LS = 'work-wallet';
 
 // 가상 회사 (실제 회사와 관계없음)
 export const STOCKS = [
-  { code: 'WRK', name: '워크전자', base: 52000, vol: 0.012, color: '#4f8cff' },
-  { code: 'HGB', name: '한강바이오', base: 18000, vol: 0.026, color: '#3ecf8e' },
-  { code: 'GRM', name: '구름게임즈', base: 34000, vol: 0.018, color: '#b47cff' },
-  { code: 'BYF', name: '별빛푸드', base: 9800, vol: 0.008, color: '#ffb547' },
+  { code: 'WRK', name: '워크전자', base: 52000, vol: 0.012, vol2: 0.03, color: '#4f8cff' },
+  { code: 'HGB', name: '한강바이오', base: 18000, vol: 0.026, vol2: 0.06, color: '#3ecf8e' },
+  { code: 'GRM', name: '구름게임즈', base: 34000, vol: 0.018, vol2: 0.045, color: '#b47cff' },
+  { code: 'BYF', name: '별빛푸드', base: 9800, vol: 0.008, vol2: 0.02, color: '#ffb547' },
 ];
 // 가격: 2026-11-01부터 1시간마다 정해진 규칙(씨앗 난수)으로 오르내림 → 서버 없이도 모두 같은 가격
 const EPOCH = Date.UTC(2026, 10, 1) / 3600000;
+// 11-26 사용자 요청 '변동 폭을 키우자': 11/26 11:00(한국)부터는 vol2(한 시간 최대 ±2~6%). 그 전 가격은 그대로라 이미 산 주식 값이 갑자기 튀지 않음
+const BIG_FROM = Date.UTC(2026, 10, 26, 2) / 3600000 - EPOCH;
 function rnd(seed) { let t = (seed + 0x6d2b79f5) | 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
 const series = new Map(); // code → [시간별 가격]
 function priceAt(st, h) {
@@ -31,7 +33,8 @@ function priceAt(st, h) {
   const salt = st.code.charCodeAt(0) * 7919 + st.code.charCodeAt(2) * 131;
   while (arr.length <= h) {
     const p = arr[arr.length - 1], i = arr.length;
-    const r = (rnd(i * 2654435761 + salt) * 2 - 1) * st.vol + 0.12 * st.vol * Math.log(st.base / p) + 0.0001; // 기준가 쪽으로 살짝 돌아옴
+    const v = i >= BIG_FROM && st.vol2 ? st.vol2 : st.vol;
+    const r = (rnd(i * 2654435761 + salt) * 2 - 1) * v + 0.12 * v * Math.log(st.base / p) + 0.0001; // 기준가 쪽으로 살짝 돌아옴
     arr.push(Math.max(st.base * 0.2, p * (1 + r)));
   }
   return arr[Math.max(0, h)];
