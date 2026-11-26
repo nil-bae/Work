@@ -10,23 +10,37 @@
    4) 지갑 주인 확인: 기기마다 비밀 키. 다른 기기에서 쓰려면 '기기 연결 코드' 입력
    ===================================================================== */
 
--- ---------- 표 ----------
+/* ---------- 표 ---------- */
+/* 지갑 표가 아직 없으면 만듦 */
+create table if not exists public.wallets (
+  name text primary key check (char_length(name) <= 16),
+  cash double precision not null default 0,
+  unpaid double precision not null default 0,
+  day text,
+  day_secs int not null default 0 check (day_secs between 0 and 86400),
+  paid_month text,
+  savings double precision not null default 0,
+  sav_day text,
+  stocks jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
 alter table public.wallets add column if not exists day_pay double precision not null default 0;
 alter table public.wallets add column if not exists last_tick timestamptz;
+alter table public.wallets add column if not exists imported boolean not null default false;
 
-create table if not exists public.wallet_keys (name text not null, key_hash text not null, created_at timestamptz not null default now(), primary key (name, key_hash)); -- 한 이름에 기기 키 여러 개
+create table if not exists public.wallet_keys (name text not null, key_hash text not null, created_at timestamptz not null default now(), primary key (name, key_hash)); /* 한 이름에 기기 키 여러 개 */
 create table if not exists public.wallet_ledger (id bigserial primary key, name text not null, kind text not null, amount double precision not null, day text not null, ref text, created_at timestamptz not null default now());
 create index if not exists wallet_ledger_day on public.wallet_ledger (name, kind, day);
 create table if not exists public.shop_prices (id text primary key, price int not null);
 create table if not exists public.stock_prices (code text not null, h int not null, price double precision not null, primary key (code, h));
 create table if not exists public.duel_bets (duel_id text not null, name text not null, amount double precision not null, result text, settled boolean not null default false, created_at timestamptz not null default now(), primary key (duel_id, name));
 
--- 지갑: 읽기만 (쓰기는 아래 함수로만)
+/* 지갑: 읽기만 (쓰기는 아래 함수로만) */
 alter table public.wallets enable row level security;
 drop policy if exists "wallets insert" on public.wallets;
 drop policy if exists "wallets update" on public.wallets;
 revoke insert, update, delete on public.wallets from anon, authenticated;
--- 비밀 표: 사이트에서 아예 못 봄
+/* 비밀 표: 사이트에서 아예 못 봄 */
 alter table public.wallet_keys enable row level security;
 alter table public.wallet_ledger enable row level security;
 alter table public.shop_prices enable row level security;
@@ -34,7 +48,7 @@ alter table public.stock_prices enable row level security;
 alter table public.duel_bets enable row level security;
 revoke all on public.wallet_keys, public.wallet_ledger, public.shop_prices, public.stock_prices, public.duel_bets from anon, authenticated;
 
--- 부티크 가격 (출석 한정판은 팔지 않으므로 없음)
+/* 부티크 가격 (출석 한정판은 팔지 않으므로 없음) */
 insert into public.shop_prices (id, price) values
   ('glasses', 30000),
   ('sunglasses', 50000),
@@ -68,7 +82,7 @@ insert into public.shop_prices (id, price) values
   ('tuxedo', 550000)
 on conflict (id) do update set price = excluded.price;
 
--- 지금까지의 주가 48시간 (사이트에 보이던 가격 그대로 이어 감)
+/* 지금까지의 주가 48시간 (사이트에 보이던 가격 그대로 이어 감) */
 insert into public.stock_prices (code, h, price) values
 ('WRK', 559, 52482.90),
 ('WRK', 560, 52736.17),
@@ -264,25 +278,25 @@ insert into public.stock_prices (code, h, price) values
 ('BYF', 606, 9432.81)
 on conflict do nothing;
 
--- ---------- 공통 ----------
+/* ---------- 공통 ---------- */
 create or replace function public._kst_day() returns text language sql stable as $$ select to_char(now() at time zone 'Asia/Seoul', 'YYYY-MM-DD') $$;
 create or replace function public._hour() returns int language sql stable as $$ select floor(extract(epoch from now()) / 3600 - extract(epoch from timestamptz '2026-11-01 00:00:00+00') / 3600)::int $$;
 
--- 지갑 주인 확인: 처음 쓰는 이름이면 이 기기가 주인 / 아니면 키가 맞아야 함
+/* 지갑 주인 확인: 처음 쓰는 이름이면 이 기기가 주인 / 아니면 키가 맞아야 함 */
 create or replace function public._auth(p_name text, p_key text) returns void language plpgsql security definer set search_path = public as $$
 declare h text := md5(coalesce(p_key, '') || ':' || p_name);
 begin
   if p_name is null or char_length(p_name) < 1 or char_length(p_name) > 16 or char_length(coalesce(p_key, '')) < 12 then raise exception 'bad_input'; end if;
   if exists (select 1 from wallet_keys where name = p_name and key_hash = h) then return; end if;
   if exists (select 1 from wallet_keys where name = p_name) then raise exception 'not_owner'; end if;
-  insert into wallet_keys (name, key_hash) values (p_name, h) on conflict do nothing; -- 처음 쓰는 이름 → 이 기기가 주인
+  insert into wallet_keys (name, key_hash) values (p_name, h) on conflict do nothing; /* 처음 쓰는 이름 → 이 기기가 주인 */
 end $$;
 
--- 지갑 가져오기 (없으면 입사 축하금 10만 원) + 날짜 바뀜 · 적금 이자 정리
+/* 지갑 가져오기 (없으면 입사 축하금 10만 원) + 날짜 바뀜 · 적금 이자 정리 */
 create or replace function public._wallet(p_name text) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; t text := _kst_day(); d int; r record;
 begin
-  -- 결과가 안 온 지 3분 넘은 결투 판돈은 정리(돌려받기)
+  /* 결과가 안 온 지 3분 넘은 결투 판돈은 정리(돌려받기) */
   for r in select duel_id from duel_bets where name = p_name and not settled and created_at < now() - interval '3 minutes' loop perform _duel_resolve(r.duel_id); end loop;
   select * into w from wallets where name = p_name for update;
   if not found then
@@ -304,11 +318,11 @@ begin
   return w;
 end $$;
 
--- ---------- 사이트가 부르는 함수 ----------
+/* ---------- 사이트가 부르는 함수 ---------- */
 create or replace function public.wallet_get(p_name text, p_key text) returns wallets language plpgsql security definer set search_path = public as $$
 begin perform _auth(p_name, p_key); return _wallet(p_name); end $$;
 
--- 일급: 서버 시계로 지난 시간만큼 (한 번에 최대 90초, 5분 넘게 비었으면 0, 하루 12시간까지)
+/* 일급: 서버 시계로 지난 시간만큼 (한 번에 최대 90초, 5분 넘게 비었으면 0, 하루 12시간까지) */
 create or replace function public.wallet_tick(p_name text, p_key text) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; secs double precision; add double precision;
 begin
@@ -320,7 +334,7 @@ begin
   return _save(w);
 end $$;
 
--- 눈싸움 · 레이스 상금 (한 번 · 하루 상한)
+/* 눈싸움 · 레이스 상금 (한 번 · 하루 상한) */
 create or replace function public.wallet_reward(p_name text, p_key text, p_kind text, p_amount double precision) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; per double precision; cap double precision; got double precision; give double precision; t text := _kst_day();
 begin
@@ -335,7 +349,7 @@ begin
   return _save(w);
 end $$;
 
--- 부티크: 가격은 서버 목록에서
+/* 부티크: 가격은 서버 목록에서 */
 create or replace function public.shop_buy(p_name text, p_key text, p_id text) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; pr int; its jsonb;
 begin
@@ -350,7 +364,7 @@ begin
   return _save(w);
 end $$;
 
--- 착용: 가진 것만 (빈 값 = 벗기)
+/* 착용: 가진 것만 (빈 값 = 벗기) */
 create or replace function public.wallet_wear(p_name text, p_key text, p_slot text, p_id text) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; wr jsonb;
 begin
@@ -364,7 +378,7 @@ begin
   return _save(w);
 end $$;
 
--- 🎄 크리스마스 출석: 오늘 도장(서버 날짜) + 조건 채운 선물
+/* 🎄 크리스마스 출석: 오늘 도장(서버 날짜) + 조건 채운 선물 */
 create or replace function public.advent_checkin(p_name text, p_key text) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; t text := _kst_day(); ds jsonb; its jsonb; n int; r record;
 begin
@@ -382,7 +396,7 @@ begin
   return _save(w);
 end $$;
 
--- 🏦 적금 넣기(+) · 빼기(-)
+/* 🏦 적금 넣기(+) · 빼기(-) */
 create or replace function public.saving_move(p_name text, p_key text, p_amount double precision) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; a double precision;
 begin
@@ -392,7 +406,7 @@ begin
   return _save(w);
 end $$;
 
--- 📈 주가: 매시간 서버가 새로 정함 (random, 씨앗 공개 안 함). 아직 안 정한 시간은 부를 때 채움
+/* 📈 주가: 매시간 서버가 새로 정함 (random, 씨앗 공개 안 함). 아직 안 정한 시간은 부를 때 채움 */
 create or replace function public._ensure_prices() returns void language plpgsql security definer set search_path = public as $$
 declare st record; last_h int; p double precision; v double precision; hh int; cur int := _hour();
 begin
@@ -409,7 +423,7 @@ begin
   end loop;
 end $$;
 
--- 사이트용: 지금까지 48시간 가격 (미래는 없음)
+/* 사이트용: 지금까지 48시간 가격 (미래는 없음) */
 create or replace function public.stock_prices_now() returns jsonb language plpgsql security definer set search_path = public as $$
 declare cur int := _hour();
 begin
@@ -417,7 +431,7 @@ begin
   return jsonb_build_object('h', cur, 'prices', (select jsonb_object_agg(code, arr) from (select code, jsonb_agg(price order by h) arr from stock_prices where h > cur - 48 and h <= cur group by code) x));
 end $$;
 
--- 사고(+) 팔기(-): 지금 서버 가격으로
+/* 사고(+) 팔기(-): 지금 서버 가격으로 */
 create or replace function public.stock_trade(p_name text, p_key text, p_code text, p_qty int) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; pr double precision; hold jsonb; q int; c double precision; n int;
 begin
@@ -436,7 +450,7 @@ begin
   return _save(w);
 end $$;
 
--- ⚔️ 결투 판돈: 걸면 서버가 보관 → 두 사람의 결과가 맞을 때만 이긴 쪽에 2배 (안 맞으면 각자 돌려받음)
+/* ⚔️ 결투 판돈: 걸면 서버가 보관 → 두 사람의 결과가 맞을 때만 이긴 쪽에 2배 (안 맞으면 각자 돌려받음) */
 create or replace function public.duel_stake(p_name text, p_key text, p_duel text, p_amount double precision) returns wallets language plpgsql security definer set search_path = public as $$
 declare w wallets; a double precision;
 begin
@@ -453,13 +467,13 @@ begin
   select * into a from duel_bets where duel_id = p_duel and not settled order by name limit 1;
   select * into b from duel_bets where duel_id = p_duel and not settled and name <> coalesce(a.name, '') order by name limit 1;
   if a.name is null then return; end if;
-  if b.name is null then -- 상대 판돈이 없거나 오래 결과가 안 오면 돌려줌
+  if b.name is null then /* 상대 판돈이 없거나 오래 결과가 안 오면 돌려줌 */
     if a.created_at < now() - interval '3 minutes' then update wallets set cash = cash + a.amount where name = a.name; update duel_bets set settled = true where duel_id = p_duel and name = a.name; end if;
     return;
   end if;
   if a.result is null or b.result is null then
     if least(a.created_at, b.created_at) > now() - interval '3 minutes' then return; end if;
-    a.result := 'x'; b.result := 'y'; -- 시간 초과 → 돌려줌
+    a.result := 'x'; b.result := 'y'; /* 시간 초과 → 돌려줌 */
   end if;
   pot := least(a.amount, b.amount);
   if a.result = 'win' and b.result = 'lose' then update wallets set cash = cash + pot * 2 + (a.amount - pot) where name = a.name; update wallets set cash = cash + (b.amount - pot) where name = b.name;
@@ -477,7 +491,7 @@ begin
   return _wallet(p_name);
 end $$;
 
--- 기기 연결 코드: 주인 기기가 코드를 만들면 → 다른 기기가 그 코드를 자기 키로 씀 (기기 키가 하나 늘어남)
+/* 기기 연결 코드: 주인 기기가 코드를 만들면 → 다른 기기가 그 코드를 자기 키로 씀 (기기 키가 하나 늘어남) */
 create or replace function public.wallet_link_code(p_name text, p_key text) returns text language plpgsql security definer set search_path = public as $$
 declare code text := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 12));
 begin
@@ -486,9 +500,44 @@ begin
   return code;
 end $$;
 
+/* 📦 예전 지갑(각자 브라우저에 있던 것) 한 번만 가져오기: 산 아이템 값 + 현금 + 예금 + 주식 값 합쳐 최대 300만 원(아이템 먼저), 아이템은 실제 상품 + 출석 조건 맞는 선물만 */
+create or replace function public.wallet_import(p_name text, p_key text, p_cash double precision, p_savings double precision, p_items jsonb, p_wear jsonb, p_xmas jsonb) returns wallets language plpgsql security definer set search_path = public as $$
+declare w wallets; tot double precision; sav double precision; bud double precision; pr double precision; its jsonb; ds jsonb; wr jsonb := '{}'::jsonb; n int; r record; k text; v text; t text := _kst_day();
+begin
+  perform _auth(p_name, p_key); w := _wallet(p_name);
+  if w.imported then return w; end if;
+  its := coalesce(w.stocks -> '__items', '[]'::jsonb); bud := 3000000;
+  for v in select x from jsonb_array_elements_text(case when jsonb_typeof(p_items) = 'array' then p_items else '[]'::jsonb end) x loop
+    select price into pr from shop_prices where id = v;
+    if pr is not null and pr <= bud and not its ? v then its := its || to_jsonb(v); bud := bud - pr; end if;
+  end loop;
+  sav := least(greatest(coalesce(p_savings, 0), 0), bud);
+  tot := least(greatest(coalesce(p_cash, 0), 0) + sav, bud);
+  sav := least(sav, tot);
+  w.cash := greatest(w.cash - 100000, 0) + (tot - sav); w.savings := w.savings + sav;
+  ds := coalesce(w.stocks -> '__xmas', '[]'::jsonb);
+  for v in select x from jsonb_array_elements_text(case when jsonb_typeof(p_xmas) = 'array' then p_xmas else '[]'::jsonb end) x loop
+    if v ~ '^\d{4}-\d{2}-\d{2}$' and v >= '2026-11-24' and v <= t and not ds ? v then ds := ds || to_jsonb(v); end if;
+  end loop;
+  select count(*) into n from jsonb_array_elements_text(ds) x where x >= '2026-11-24' and x <= '2026-12-25';
+  for r in select * from (values ('rudolph', 1), ('xknit', 3), ('santasack', 6), ('santaboots', 10), ('santacoat', 15), ('snowwings', 21)) vv(id, need) loop
+    if n >= r.need and not its ? r.id then its := its || to_jsonb(r.id); end if;
+  end loop;
+  if jsonb_typeof(p_wear) = 'object' then
+    for k, v in select key, value from jsonb_each_text(p_wear) loop if its ? v then wr := wr || jsonb_build_object(k, v); end if; end loop;
+  end if;
+  w.stocks := jsonb_set(jsonb_set(jsonb_set(w.stocks, '{__items}', its), '{__xmas}', ds), '{__wear}', coalesce(w.stocks -> '__wear', '{}'::jsonb) || wr);
+  w := _save(w);
+  update wallets set imported = true where name = p_name;
+  insert into wallet_ledger (name, kind, amount, day) values (p_name, 'import', tot, t);
+  w.imported := true;
+  return w;
+end $$;
+
 grant execute on function public.wallet_get(text, text), public.wallet_tick(text, text), public.wallet_reward(text, text, text, double precision),
   public.shop_buy(text, text, text), public.wallet_wear(text, text, text, text), public.advent_checkin(text, text), public.saving_move(text, text, double precision),
   public.stock_prices_now(), public.stock_trade(text, text, text, int), public.duel_stake(text, text, text, double precision), public.duel_report(text, text, text, text),
-  public.wallet_link_code(text, text) to anon, authenticated;
+  public.wallet_link_code(text, text),
+  public.wallet_import(text, text, double precision, double precision, jsonb, jsonb, jsonb) to anon, authenticated;
 revoke execute on function public._auth(text, text), public._wallet(text), public._save(wallets), public._ensure_prices(), public._duel_resolve(text) from anon, authenticated, public;
 notify pgrst, 'reload schema';

@@ -116,13 +116,23 @@ export function createMoney(api) {
     return notes;
   }
 
+  // 📦 서버 지갑으로 바뀌기 전 이 브라우저에 있던 지갑을 한 번만 옮김(서버가 상한 300만 원 · 진짜 상품만 받아 줌)
+  function importOld(name, row) {
+    if (!row || row.imported) return;
+    const old = localAll()[name];
+    if (!old) return; /* 새로 온 사람은 옮길 것 없음 */
+    const st = old.stocks || {};
+    const sv = STOCKS.reduce((s, x) => s + (st[x.code]?.q || 0) * price(x), 0);
+    rpc('wallet_import', { p_cash: (+old.cash || 0) + (+old.unpaid || 0) + sv, p_savings: +old.savings || 0, p_items: st.__items || [], p_wear: st.__wear || {}, p_xmas: st.__xmas || [] })
+      .then((r) => { apply(r); api.toast?.('📦 이 기기에 있던 지갑과 아이템을 옮겨 왔어요.'); }).catch(() => {});
+  }
   async function load(name) {
     owner = name; w = null;
     if (supa && !useLocal) {
       for (let tries = 0; tries < 3; tries++) {
         const { data, error } = await supa.rpc('wallet_get', { p_name: name, p_key: keyFor(name) });
         if (owner !== name) return [];
-        if (!error) { server = true; w = fromRow(data); chip(); fetchPrices(); rpc('wallet_tick').then(apply).catch(() => {}); lastTickCall = Date.now(); return []; }
+        if (!error) { server = true; w = fromRow(data); chip(); importOld(name, data); fetchPrices(); rpc('wallet_tick').then(apply).catch(() => {}); lastTickCall = Date.now(); return []; }
         if (!/not_owner/.test(error.message)) { if (/function|PGRST202|404/i.test(error.message + error.code)) break; console.warn('지갑 불러오기 실패', error.message); break; }
         server = true;
         const code = prompt(`💳 "${name}" 지갑은 다른 기기에 연결돼 있어요.\n\n그 기기에서 👛 지갑 → [📱 다른 기기에서도 쓰기]를 누르면 나오는 12자리 연결 코드를 입력하세요.\n(다른 분이라면 [취소]를 누르고 👤 내 캐릭터에서 이름을 바꿔 주세요)`);
