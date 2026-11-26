@@ -7,7 +7,7 @@ import { Kit, canvasTex, SNOW, BOX } from './building.js';
 
 const SPEED = 14, UP = 2.0, G = 9.8, COOL = 0.55;   // 던지는 힘 · 위로 · 중력 · 다시 던지기까지(초)
 const REMOTE_DELAY = 0.3;                              // 다른 사람 캐릭터는 조금 늦게 그려지므로 그 사람 눈덩이도 그만큼 늦게
-const PAY_HIT = 1000, PAY_TARGET = 100, PAY_DAY = 90000; // 사람 맞히기 · 과녁 맞히기 · 하루 최대 용돈
+const PAY_HIT = 1000, PAY_TARGET = 100, PAY_DAY = 50000; // 사람 맞히기 · 과녁 맞히기 · 하루 최대 용돈
 const WALLS = [[-4.6, -12.9], [4.6, -12.9], [-4.6, -18.3], [4.6, -18.3]]; // 눈 벽 (가로 2.4m)
 const WALL = { w: 2.4, d: 0.6, h: 0.8 };
 const TARGETS = [{ z: -20.7, a: 6.5, sp: 0.42, ph: 0 }, { z: -20.7, a: 6.5, sp: 0.42, ph: Math.PI }, { z: -15.6, a: 2.2, sp: 0.7, ph: 1.3 }];
@@ -107,12 +107,12 @@ export function createSnowFight(api) {
   let inField = false, last = null, nextThrow = 0, seq = 0, hits = 0, gotHit = 0, splatT = 0;
   const today = () => new Date().toLocaleDateString('ko-KR');
   let pay = { day: '', won: 0 };
-  try { pay = { ...pay, ...JSON.parse(localStorage.getItem('work-snow') || '{}') }; } catch {}
+  try { pay = { ...pay, ...JSON.parse(localStorage.getItem('work-snow2') || '{}') }; } catch {}
   const won = (n) => `${Math.round(n).toLocaleString('ko-KR')}원`;
   function reward(n) {
     if (pay.day !== today()) pay = { day: today(), won: 0 };
     const give = Math.max(0, Math.min(n, PAY_DAY - pay.won));
-    if (give) { pay.won += give; api.earn(give); try { localStorage.setItem('work-snow', JSON.stringify(pay)); } catch {} }
+    if (give) { pay.won += give; api.earn(give); try { localStorage.setItem('work-snow2', JSON.stringify(pay)); } catch {} }
     hud();
     return give;
   }
@@ -198,7 +198,7 @@ export function createSnowFight(api) {
     const p = api.player();
     const was = inField;
     inField = api.active() && inSnow(p.floor, p.x, p.z);
-    if (inField !== was) { hud(); $('btnSnow').hidden = !(inField && api.isTouch); if (inField && !was) api.sys('⛄ 눈싸움장에 들어왔어요! 캐릭터가 보는 쪽으로 눈을 던져요 (F 키 · ❄ 버튼). 사람을 맞히면 +1,000원, 눈사람 과녁은 +100원 (하루 최대 9만 원).'); }
+    if (inField !== was) { hud(); $('btnSnow').hidden = !(inField && api.isTouch); if (inField && !was) api.sys('⛄ 눈싸움장에 들어왔어요! 캐릭터가 보는 쪽으로 눈을 던져요 (F 키 · ❄ 버튼). 사람을 맞히면 +1,000원, 눈사람 과녁은 +100원 (하루 최대 5만 원).'); }
     field.placeTargets(dt);
     for (const b of [...balls]) {
       if (b.wait > 0) { b.wait -= dt; continue; }
