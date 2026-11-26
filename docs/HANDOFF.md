@@ -259,3 +259,10 @@ docs/HANDOFF.md 를 먼저 읽고 그대로 이어서 해줘.
 - 1단계(적용, 화면 쪽): ① `window.__work`는 서버 없는 로컬 데모에서만(콘솔에서 money.earn · duel 건드리던 통로 닫음) ② `money.buy(id)`는 가격을 상품 목록(main `priceOf`)에서 직접 찾음(0원 구매 막음), 출석 한정판은 못 삼 ③ `money.grant`는 출석 조건(advent.earned)을 채운 선물만 ④ 결투: 받은 데미지 한 번 최대 9(0.15초 안 연속이면 3), 내 체력 · 시간이 남았는데 '졌다'는 end는 무시.
 - ⚠️ 한계: 개발자 도구를 잘 아는 사람은 여전히 코드를 고치거나 Supabase에 직접 요청해 지갑을 바꿀 수 있음(공개 anon 키 + 서버 검증 없음 + 이름만으로 지갑 찾음). 주가는 씨앗 난수라 미래 가격 계산 가능. 근본 해결은 2단계: Supabase에서 지갑 직접 수정 금지(RLS) + 돈 바꾸는 일은 서버 함수(RPC)로 검증 + 주가 씨앗은 서버에만 + 기기 비밀 키로 지갑 주인 확인. 사용자가 Supabase SQL 편집기에 붙여 넣어야 함.
 - ⚠️ 작업 메모: 한 줄 끝에 `// 설명`을 붙일 때 그 뒤 코드까지 주석이 되는 실수를 두 번 함(사이트 멈춤 위험) → 줄 중간 설명은 `/* */`로.
+
+## 🛡 부정 방지 2단계 — 서버 지갑 (11-26)
+- `docs/security.sql`: 사용자가 Supabase → SQL Editor에 한 번 붙여 넣고 Run(여러 번 실행해도 안전). wallets 직접 쓰기 금지(정책 삭제 + insert/update 권한 회수), 돈이 바뀌는 일은 전부 서버 함수(RPC)로만: `wallet_get · wallet_tick(서버 시계, 1회 최대 90초, 하루 12시간) · wallet_reward('snow' 1천/하루 9만, 'race' 1회 6만/하루 10만) · shop_buy(가격은 서버 shop_prices) · wallet_wear · advent_checkin · saving_move · stock_prices_now · stock_trade(가격은 서버 stock_prices, 매시간 랜덤 워크) · duel_stake · duel_report(두 사람 결과가 맞아야 2배, 안 맞으면 환불, 3분 지나면 환불) · wallet_link_code`.
+- 지갑 주인 확인: 기기마다 localStorage `work-keys`의 비밀 키. 처음 쓴 키가 이름 주인. 다른 기기는 지갑 → [📱 다른 기기에서도 쓰기]에서 받은 12자리 코드를 입력하면 연결.
+- money.js: `wallet_get`이 되면 서버 모드(`money.server`), 함수가 없으면(PGRST202) 예전 방식 그대로 → SQL 실행 전에 배포해도 안전. `__work`는 서버 없음 또는 localhost에서만.
+- 테스트: 로컬 Postgres(/tmp/pg, 5499) + bridge.py(127.0.0.1:8124) + 가짜 supabase 클라이언트(chk/srv.py). 구매 차감 · 1e9 보상 → 1000만 · 한정판 구매 거부 · 다른 기기 코드 연결 · 함수 없을 때 예전 방식 확인.
+- ⚠️ 남은 한계: 새 이름으로 들어오면 환영금 10만 원을 또 받음 / duel_stats · 요청 · 공지 테이블은 아직 누구나 씀 / 결투는 두 사람이 결과를 다르게 보고하면 둘 다 환불.

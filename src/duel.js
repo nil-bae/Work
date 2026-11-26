@@ -207,7 +207,7 @@ export function createDuel(api) {
     invite = null; outgoing = null; counterIn = null; api.closeModals();
     // 💰 판돈: 시작할 때 각자 지갑에서 미리 빼 둠 → 끝나면 이긴 사람이 두 배를 받음 (비기면 돌려받음)
     st.bet = 0;
-    if (!e.bot && e.bet > 0) { if (api.spend(e.bet)) { st.bet = e.bet; api.sys(`💰 판돈 ${won(e.bet)}을 걸었어요!`); } else api.sys('💰 지갑에 돈이 모자라서 판돈 없이 싸워요.'); }
+    if (!e.bot && e.bet > 0) { if (api.stake(e.id, e.bet)) { /* 🛡 서버가 판돈을 보관(security.sql duel_stake) */ st.bet = e.bet; api.sys(`💰 판돈 ${won(e.bet)}을 걸었어요!`); } else api.sys('💰 지갑에 돈이 모자라서 판돈 없이 싸워요.'); }
     document.activeElement?.blur?.(); // 버튼·채팅 칸에 남은 커서를 빼서 스페이스바가 바로 공격이 되게
     api.enterArena(mineA ? -1 : 1, st.bot);
     $('duelUI').hidden = false; $('dResult').hidden = true; $('dAttack').hidden = false;
@@ -246,8 +246,9 @@ export function createDuel(api) {
     else if (e.winner === me.id) { stats.win++; stats.level++; const was = stats.loser; stats.loser = false; msg = `🏆 승리! <b>Lv.${stats.level}</b>로 올랐어요 🎉${was ? '<br>😵패배자 칭호도 떨어졌어요!' : ''}`; api.beep(784, 0.3); }
     else { stats.lose++; stats.loser = true; stats.loseDay = today(); msg = `😵 패배… 이름표에 <b>패배자</b> 칭호가 붙었어요.<br><small>오늘 하루만 붙어요. 오늘 다시 이기면 바로 떨어져요.</small>`; }
     if (st.bet > 0) { // 💰 판돈 정산
-      if (e.winner === me.id) { api.earn(st.bet * 2); msg += `<br><b class="bet-big">💰 판돈 ${won(st.bet * 2)}을 가져왔어요!</b>`; }
-      else if (!e.winner) { api.earn(st.bet); msg += `<br><small>💰 비겨서 판돈 ${won(st.bet)}을 돌려받았어요.</small>`; }
+      api.duelReport(st.id, e.winner === me.id ? 'win' : !e.winner ? 'draw' : 'lose', st.bet); /* 🛡 두 사람 결과가 맞을 때만 서버가 2배 지급 */
+      if (e.winner === me.id) msg += `<br><b class="bet-big">💰 판돈 ${won(st.bet * 2)}을 가져왔어요!</b>`;
+      else if (!e.winner) msg += `<br><small>💰 비겨서 판돈 ${won(st.bet)}을 돌려받았어요.</small>`;
       else msg += `<br><small>💸 판돈 ${won(st.bet)}을 잃었어요…</small>`;
       st.bet = 0;
     }

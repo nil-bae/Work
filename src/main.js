@@ -162,7 +162,7 @@ const peers = new Map();
 const lvName = (name, lv, loser = false) => `${loser ? '😵패배자 ' : ''}${lv > 1 ? `Lv.${lv} ` : ''}${name}`;
 const duel = createDuel({
   $, me, peers, isTouch,
-  cash: () => money.cash(), spend: (n) => money.spend(n), earn: (n) => money.earn(n),
+  cash: () => money.cash(), stake: (id, n) => money.stake(id, n), duelReport: (id, r, bet) => money.duelReport(id, r, bet),
   net: () => net,
   openModal: (id) => openModal(id), closeModals: () => closeModals(),
   sys: (t) => sysMessage(t), chatLine: (t) => sysMessage(t),
@@ -232,7 +232,7 @@ const snowFight = createSnowFight({
   scene, field: snowField, me, peers, $, isTouch,
   player: () => player, avatar: () => myAvatar, now: () => now, camYaw: () => cam.yaw,
   active: () => !!myAvatar && mode === 'office', busy: () => busy() || player.sit,
-  send: (e) => net?.sendEvent(e), sendNow: () => sendState(true), earn: (n) => money.earn(n),
+  send: (e) => net?.sendEvent(e), sendNow: () => sendState(true), earn: (n) => money.reward('snow', n),
   toast: (t) => toast(t, null), sys: (t) => sysMessage(t),
   thump: () => playThump(0.5), whoosh: () => playBeep(520, 0.05), ding: () => playBeep(1180, 0.1),
 });
@@ -240,7 +240,7 @@ const snowFight = createSnowFight({
 const raceTrack = createRaceTrack(bld.floors[0].colliders);
 scene.add(raceTrack.group);
 const race = createRace({
-  $, me, peers, isTouch, cam, player: () => player, send: (e) => net?.sendEvent(e), earn: (n) => money.earn(n),
+  $, me, peers, isTouch, cam, player: () => player, send: (e) => net?.sendEvent(e), earn: (n) => money.reward('race', n),
   sys: (t) => sysMessage(t), toast: (t) => toast(t, null), beep: (f, d) => playBeep(f, d), ding: () => { playBeep(988, 0.12); setTimeout(() => playBeep(1319, 0.2), 130); },
   ownKick: () => me.kick || (money.ready ? money.items().find((id) => KICK_IDS.includes(id)) : null),
   toFloor0: () => { player.floor = 0; bld.setFloor(0, false); },
@@ -268,7 +268,7 @@ const atShop = () => mode === 'office' && player.floor === 0 && shop.inside(play
 const shopUI = createShopUI({ $, money, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => playBeep(880, 0.15), atShop, changed: () => applyWear(), openXmas: () => advent.open() });
 // 🎄 크리스마스 출석 (들어올 때 하루 한 번 도장 → 한정판 선물)
 const advent = createXmas({ $, money, me, openModal: (id) => openModal(id), sys: (t) => sysMessage(t), beep: () => { playBeep(988, 0.12); setTimeout(() => playBeep(1319, 0.18), 130); }, changed: () => applyWear() });
-function adventCheckIn() { if (!$('newsModal').hidden) { setTimeout(adventCheckIn, 500); return; } if (advent.checkIn()) advent.open(); }
+function adventCheckIn() { if (!$('newsModal').hidden) { setTimeout(adventCheckIn, 500); return; } advent.checkIn().then((s) => { if (s) advent.open(); }); }
 function applyWear() {
   const w = money.wear();
   me.acc = Object.entries(w).filter(([k, v]) => k !== 'ride' && v).map(([, v]) => v); me.kick = w.ride || null; // 🛴 탈것은 몸에 붙이지 않고 발밑에
@@ -1712,5 +1712,5 @@ requestAnimationFrame(() => {
 
 // 테스트용 훅
 // 🛡 11-26: 개발자 콘솔에서 돈 · 결투를 건드릴 수 있던 통로 → 서버 없는 로컬 데모(점검용)에서만 열어 둠
-if (!supa) window.__work = { danceTap, sitDown, race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
+if (!supa || /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) window.__work = { danceTap, sitDown, race, advent, snowFight, shop, shopUI, money, ride, rideJoin, sleigh, FLY, duel, findPath, get mode() { return mode; }, get av() { return myAvatar; }, toggleDay, game, bld, collide, get day() { return dayVal; }, player, cam, orbit, peers, enter, keys, goFloor, chooseFloor };
 window.__workMain = true;

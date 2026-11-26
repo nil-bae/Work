@@ -82,14 +82,19 @@ export function createXmas(api) {
   }
 
   // 들어올 때 한 번: 오늘 도장 + 새 선물 지급
-  function checkIn() {
+  async function checkIn() {
     $('btnXmas').hidden = !visible();
     if (!on() || !money.ready) { render(); return false; }
-    const t = money.today();
-    const stamped = money.stampDay(t);
-    const ds = days();
+    let stamped = false;
     fresh = null;
-    for (const r of XMAS_REWARDS) if (earned(r, ds) && money.grant(r.id)) fresh = r; // 늦게 받아도(예: 다른 기기) 빠짐없이
+    if (money.server) { // 🛡 서버가 오늘 도장(서버 날짜) · 선물을 정함
+      try { const r = await money.adventCheckin(); stamped = r.stamped; const last = XMAS_REWARDS.filter((x) => r.got.includes(x.id)).pop(); if (last) fresh = last; } catch (e) { console.warn('출석', e.message); }
+    } else {
+      stamped = money.stampDay(money.today());
+      const ds0 = days();
+      for (const r of XMAS_REWARDS) if (earned(r, ds0) && money.grant(r.id)) fresh = r; // 늦게 받아도(예: 다른 기기) 빠짐없이
+    }
+    const ds = days();
     render();
     if (!stamped) return false;
     api.justStamped = true; render();

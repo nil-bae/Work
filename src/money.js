@@ -27,7 +27,11 @@ const EPOCH = Date.UTC(2026, 10, 1) / 3600000;
 const BIG_FROM = Date.UTC(2026, 10, 26, 2) / 3600000 - EPOCH;
 function rnd(seed) { let t = (seed + 0x6d2b79f5) | 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
 const series = new Map(); // code → [시간별 가격]
+// 🛡 11-26 서버 모드: 주가는 서버가 매시간 정함(security.sql) → 지난 48시간만 받아 옴, 미래는 알 수 없음
+let SP = null;
 function priceAt(st, h) {
+  const sa = SP?.prices?.[st.code];
+  if (sa?.length) return sa[Math.max(0, Math.min(sa.length - 1, sa.length - 1 - (SP.h - h)))];
   let arr = series.get(st.code);
   if (!arr) { arr = [st.base]; series.set(st.code, arr); }
   const salt = st.code.charCodeAt(0) * 7919 + st.code.charCodeAt(2) * 131;
@@ -52,6 +56,39 @@ const hm = (s) => `${Math.floor(s / 3600)}시간 ${Math.floor((s % 3600) / 60)}�
 export function createMoney(api) {
   const { $, me } = api;
   let w = null, owner = '', dirty = false, useLocal = !supa, tab = 'stock';
+  // 🛡 서버 모드: Supabase에 security.sql을 실행했으면 돈은 서버 함수로만 바뀜 (사이트는 화면만 먼저 바꾸고, 서버가 돌려준 값으로 맞춤)
+  let server = false, lastTickCall = 0, lastPriceFetch = 0;
+  const KEYS_LS = 'work-keys';
+  const keys = () => { try { return JSON.parse(localStorage.getItem(KEYS_LS) || '{}'); } catch { return {}; } };
+  function keyFor(name) {
+    const m = keys();
+    if (!m[name]) { const a = new Uint8Array(14); crypto.getRandomValues(a); m[name] = [...a].map((b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join(''); try { localStorage.setItem(KEYS_LS, JSON.stringify(m)); } catch {} }
+    return m[name];
+  }
+  function setKey(name, k) { const m = keys(); m[name] = k; try { localStorage.setItem(KEYS_LS, JSON.stringify(m)); } catch {} }
+  function fromRow(row) {
+    const x = { ...blank(), ...pick(row) };
+    x.cash = +x.cash || 0; x.unpaid = 0; x.savings = +x.savings || 0; x.day_secs = +x.day_secs || 0; x.stocks = x.stocks || {};
+    x.stocks.__daypay = [x.day, +row.day_pay || 0];
+    return x;
+  }
+  function apply(row) {
+    if (!row || !owner || row.name !== owner) return;
+    w = fromRow(row); chip();
+    if (!$('walletModal').hidden) renderWallet();
+    if (!$('investModal').hidden) renderInvest();
+  }
+  const rpc = async (fn, args = {}) => { const { data, error } = await supa.rpc(fn, { p_name: owner, p_key: keyFor(owner), ...args }); if (error) throw error; return data; };
+  const sv = (fn, args, done) => rpc(fn, args).then((row) => { apply(row); done?.(true); }).catch((e) => {
+    console.warn(fn, e.message); done?.(false);
+    if (/no_cash/.test(e.message)) api.toast?.('💸 서버 확인 결과 돈이 모자라요.');
+    rpc('wallet_get').then(apply).catch(() => {}); // 화면을 서버 값으로 되돌림
+  });
+  async function fetchPrices() {
+    if (!server) return; lastPriceFetch = Date.now();
+    const { data, error } = await supa.rpc('stock_prices_now');
+    if (!error && data?.prices) { SP = data; drawBoard(); if (!$('investModal').hidden) renderInvest(); }
+  }
   const blank = () => ({ cash: WELCOME, unpaid: 0, day: today(), day_secs: 0, paid_month: new Date().getDate() >= PAYDAY ? month() : '', savings: 0, sav_day: today(), stocks: {} });
   const KEYS = ['cash', 'unpaid', 'day', 'day_secs', 'paid_month', 'savings', 'sav_day', 'stocks'];
   const pick = (o) => Object.fromEntries(KEYS.map((k) => [k, o[k]]));
@@ -60,6 +97,7 @@ export function createMoney(api) {
   function save() {
     if (!w || !owner) return;
     dirty = false;
+    if (server) return; // 서버 모드: 바뀔 때마다 서버 함수가 저장함
     const all = localAll(); all[owner] = pick(w); try { localStorage.setItem(LS, JSON.stringify(all)); } catch {}
     if (!useLocal) supa.from('wallets').upsert({ name: owner, ...pick(w), day_secs: Math.floor(w.day_secs), updated_at: new Date().toISOString() }, { onConflict: 'name' })
       .then(({ error }) => { if (error) { console.warn('지갑 저장 실패', error.message); if (/wallets|relation|schema|permission|42P01|42501|PGRST/i.test(error.message + (error.code || ''))) useLocal = true; } });
@@ -80,6 +118,19 @@ export function createMoney(api) {
 
   async function load(name) {
     owner = name; w = null;
+    if (supa && !useLocal) {
+      for (let tries = 0; tries < 3; tries++) {
+        const { data, error } = await supa.rpc('wallet_get', { p_name: name, p_key: keyFor(name) });
+        if (owner !== name) return [];
+        if (!error) { server = true; w = fromRow(data); chip(); fetchPrices(); rpc('wallet_tick').then(apply).catch(() => {}); lastTickCall = Date.now(); return []; }
+        if (!/not_owner/.test(error.message)) { if (/function|PGRST202|404/i.test(error.message + error.code)) break; console.warn('지갑 불러오기 실패', error.message); break; }
+        server = true;
+        const code = prompt(`💳 "${name}" 지갑은 다른 기기에 연결돼 있어요.\n\n그 기기에서 👛 지갑 → [📱 다른 기기에서도 쓰기]를 누르면 나오는 12자리 연결 코드를 입력하세요.\n(다른 분이라면 [취소]를 누르고 👤 내 캐릭터에서 이름을 바꿔 주세요)`);
+        if (!code || !code.trim()) { api.toast?.('💳 지갑을 쓰려면 연결 코드를 입력하거나 이름을 바꿔 주세요.'); return []; }
+        setKey(name, code.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''));
+      }
+      if (server) return [];
+    }
     let row = null;
     if (!useLocal) {
       const { data, error } = await supa.from('wallets').select('*').eq('name', name).maybeSingle();
@@ -106,8 +157,10 @@ export function createMoney(api) {
   let tick = 0, last = Date.now();
   setInterval(() => {
     const t = Date.now(), gap = (t - last) / 1000; last = t;
+    if (server && w && t - lastPriceFetch > 30000 && (!SP || hourNow() > SP.h)) fetchPrices();
     if (!w || !api.atWork()) return;
-    const notes = settle(); notes.forEach((n) => api.toast(n));
+    if (server) { if (t - lastTickCall > 55000) { lastTickCall = t; sv('wallet_tick'); } } // 일급은 서버 시계로 (화면은 아래에서 미리 더해 보여 줌)
+    else { const notes = settle(); notes.forEach((n) => api.toast(n)); }
     const add = Math.min(gap > 300 ? 0 : gap, MAX_SECS - w.day_secs);
     if (add > 0) {
       const rate = api.rate?.() ?? 1; // 지금 하는 일에 따라 2배 · 1배 · 0.5배
@@ -141,10 +194,14 @@ export function createMoney(api) {
         <dt>💎 총 자산</dt><dd><b>${won(w.cash + w.savings + sv)}</b></dd>
       </dl>
       <button type="button" class="link" id="walletItems" style="display:block;margin:4px 0 10px">👜 내 아이템 보기 · 착용하기</button>
+      ${server ? '<button type="button" class="link" id="walletLink" style="display:block;margin:0 0 10px">📱 다른 기기에서도 쓰기 (기기 연결 코드)</button>' : ''}
       <p class="sub">시급 <b>${won(WAGE * (api.rate?.() ?? 1))}</b> · 사옥에 접속해 있는 동안 세요(다른 탭에 가 있어도 OK) · 일급은 일하는 대로 <b>바로 지갑</b>에 들어와요.<br>투자는 3층 <b>💹 투자 상담실</b>에서 할 수 있어요. 모두 게임 속 가상 돈이에요.</p>`;
   }
   function openWallet() { if (!w) return; renderWallet(); api.openModal('walletModal'); }
-  document.addEventListener('click', (e) => { if (e.target?.id === 'walletItems') api.openItems?.(); });
+  document.addEventListener('click', async (e) => {
+    if (e.target?.id === 'walletItems') api.openItems?.();
+    if (e.target?.id === 'walletLink') { const c = await linkCode(); if (c) prompt('📱 다른 기기에서 같은 이름으로 들어가면 코드를 물어봐요. 이 코드를 입력하세요. (한 번만 쓰면 그 기기도 계속 쓸 수 있어요)', c); }
+  });
 
   // ---------- 투자 ----------
   function spark(st) {
@@ -190,12 +247,14 @@ export function createMoney(api) {
       api.sys(`📉 ${st.name} ${q}주를 ${won(q * p)}에 팔았어요.`);
     }
     w.stocks[code] = h; if (!h.q) delete w.stocks[code];
+    if (server) sv('stock_trade', { p_code: code, p_qty: dir > 0 ? q : -q });
     save(); renderInvest(); chip();
   }
   function saving(dir) {
     let a = Math.floor(+$('savAmt').value || 0); if (a < 1) return;
     if (dir > 0) { a = Math.min(a, Math.floor(w.cash)); if (a < 1) { alert('지갑에 현금이 없어요.'); return; } w.cash -= a; w.savings += a; api.sys(`🏦 적금에 ${won(a)}을 넣었어요.`); }
     else { a = Math.min(a, Math.floor(w.savings)); if (a < 1) return; w.savings -= a; w.cash += a; api.sys(`🏦 적금에서 ${won(a)}을 뺐어요.`); }
+    if (server) sv('saving_move', { p_amount: dir > 0 ? a : -a });
     save(); renderInvest();
   }
   function openInvest() { if (!w) return; renderInvest(); api.openModal('investModal'); }
@@ -231,16 +290,33 @@ export function createMoney(api) {
   function buy(id) { // 🛡 11-26: 가격은 부르는 쪽이 아니라 상품 목록(api.priceOf)에서 직접 찾음 → buy('diacrown', 0) 같은 0원 구매 막음
     const price = api.priceOf?.(id);
     if (!w || !(price > 0) || w.cash < price || items().includes(id)) return false;
-    w.cash -= price; w.stocks.__items = [...items(), id]; save(); chip(); return true;
+    w.cash -= price; w.stocks.__items = [...items(), id]; if (server) sv('shop_buy', { p_id: id }); save(); chip(); return true;
   }
   // ⚔️ 결투 판돈
   function spend(n) { if (!w || n <= 0 || w.cash < n) return false; w.cash -= n; save(); chip(); return true; }
-  function earn(n) { if (!w || n <= 0) return; w.cash += n; save(); chip(); }
-  function setWear(slot, id) { if (!w) return; const v = { ...wear() }; if (id) v[slot] = id; else delete v[slot]; w.stocks.__wear = v; save(); }
+  function earn(n) { if (!w || n <= 0 || server) return; w.cash += n; save(); chip(); } // 서버 모드에선 아래 reward · duelReport로만
+  // 눈싸움 · 레이스 상금: 서버가 한 번 · 하루 상한을 확인
+  function reward(kind, n) { if (!w || n <= 0) return; if (!server) { earn(n); return; } w.cash += n; chip(); sv('wallet_reward', { p_kind: kind, p_amount: n }); }
+  // ⚔️ 판돈: 서버가 보관 → 두 사람 결과가 맞을 때만 이긴 쪽에 2배
+  function stake(id, n) { if (!w || n <= 0 || w.cash < n) return false; w.cash -= n; if (server) sv('duel_stake', { p_duel: id, p_amount: n }); else save(); chip(); return true; }
+  function duelReport(id, result, bet) {
+    if (!server) { if (result === 'win') earn(bet * 2); else if (result === 'draw') earn(bet); return; }
+    sv('duel_report', { p_duel: id, p_result: result });
+    for (const ms of [4000, 15000, 200000]) setTimeout(() => rpc('wallet_get').then(apply).catch(() => {}), ms); // 상대 결과가 오면 서버가 정산
+  }
+  // 📱 기기 연결 코드 (서버 모드)
+  async function linkCode() { try { return await rpc('wallet_link_code'); } catch (e) { alert('코드를 만들지 못했어요: ' + e.message); return null; } }
+  // 🎄 출석 (서버 모드): 오늘 도장 + 조건 채운 선물을 서버가 줌
+  async function adventCheckin() {
+    const beforeDays = xmasDays(), beforeItems = items();
+    const row = await rpc('advent_checkin'); apply(row);
+    return { stamped: xmasDays().length > beforeDays.length, got: items().filter((id) => !beforeItems.includes(id)) };
+  }
+  function setWear(slot, id) { if (!w) return; const v = { ...wear() }; if (id) v[slot] = id; else delete v[slot]; w.stocks.__wear = v; if (server) sv('wallet_wear', { p_slot: slot, p_id: id || '' }); save(); }
   // 🎄 크리스마스 출석 (stocks 안에 __xmas = ['2026-11-24', ...]) · 출석 선물은 돈 없이 지급
   const xmasDays = () => (w?.stocks?.__xmas || []);
   function stampDay(day) { if (!w || xmasDays().includes(day)) return false; w.stocks.__xmas = [...xmasDays(), day]; save(); return true; }
   // 🛡 출석 조건을 채운 선물만 (api.canGrant)
   function grant(id) { if (!w || items().includes(id) || !api.canGrant?.(id)) return false; w.stocks.__items = [...items(), id]; save(); return true; }
-  return { xmasDays, stampDay, grant, today, items, wear, buy, setWear, spend, earn, cash: () => (w ? w.cash : 0), load, greeting, openWallet, openInvest, save, get ready() { return !!w; }, get mode() { return useLocal ? 'local' : 'server'; } };
+  return { reward, stake, duelReport, linkCode, adventCheckin, get server() { return server; }, xmasDays, stampDay, grant, today, items, wear, buy, setWear, spend, earn, cash: () => (w ? w.cash : 0), load, greeting, openWallet, openInvest, save, get ready() { return !!w; }, get mode() { return useLocal ? 'local' : 'server'; } };
 }
