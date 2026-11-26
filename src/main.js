@@ -21,6 +21,7 @@ import { startAudio, setMuted, isMuted, playThump, playBeep } from './audio.js';
 import { Avatar, WorkMonster, HAIR_STYLES, HAIR_COLORS, OUTFITS, BOTTOMS, BOTTOM_COLORS, ACC_SLOTS, parseLook, lookKey } from './avatar.js';
 import { connect, makeId, supa } from './net.js';
 import { listNotices, addNotice, drawNoticeBoard } from './notices.js';
+const WORK_BONUS = false; // 💼 시급 2배 이벤트 (11-25 시작 → 11-26 사용자 요청으로 종료: '사람들이 즐기질 못해서')
 
 const $ = (id) => document.getElementById(id);
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -219,7 +220,7 @@ function showToast(text, onClick) {
 }
 // 💰 월급 · 지갑 · 💹 투자
 const money = createMoney({ $, me, openItems: () => shopUI.open('mine'), openModal: (id) => openModal(id), sys: (t) => sysMessage(t), toast: (t) => toast(t, () => money.openWallet()),
-  atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), rate: () => (player.sit && player.working ? 2 : 1) /* 💼 '일하기' 중이면 2배 · 아니면 기본 시급 (11-25 반발로 1/2 차감은 없앰) */, get board() { return bld.investBoard; } });
+  atWork: () => !!myAvatar && (mode === 'office' || mode === 'exterior'), rate: () => (WORK_BONUS && player.sit && player.working ? 2 : 1) /* 💼 시급 2배 이벤트(일하기 중) — 11-26 종료, 다시 하려면 WORK_BONUS = true */, get board() { return bld.investBoard; } });
 $('workChip').onclick = () => money.openWallet();
 // 👜 WORK BOUTIQUE (1층 정원 동쪽): 아이템 사서 착용
 const shop = createShop(bld.floors[0].colliders);
@@ -888,7 +889,7 @@ function sitDown(seat) {
   myAvatar.setSit(true, seat.h);
   player.working = !!seat.desk;
   myAvatar.setWorking(player.working);
-  if (player.working) sysMessage('💻 일하는 중이에요. 지금 시급 2배(20,640원)! 다른 사람 화면에 "일하는 중..." 풍선이 보여요.');
+  if (player.working) sysMessage(WORK_BONUS ? '💻 일하는 중이에요. 지금 시급 2배(20,640원)! 다른 사람 화면에 "일하는 중..." 풍선이 보여요.' : '💻 일하는 중이에요. 다른 사람 화면에 "일하는 중..." 풍선이 보여요.');
   cam.yaw = seat.ry + Math.PI; cam.pitch = 0.3;
   sendState(true);
 }
